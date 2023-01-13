@@ -577,7 +577,7 @@ public:
     // ===================== МЕНЮ =====================
     // показать меню
     uint8_t showMenu(const String& str, bool once = false) {
-        return showMenuText(F("Open Menu"), str, chatIDs, once);
+        return showMenuText(F("Esp Reboot"), str, chatIDs, once);
     }
 
     uint8_t showMenu(const String& str, const String& id, bool once = false) {
