@@ -5,87 +5,88 @@
 #include <WiFi.h>
 #include <ESP32Ping.h>
 #include <IPAddress.h>
-#include <WiFiClientSecure.h>
-#include <UniversalTelegramBot.h>
+#include <FastBot.h>
 #include <CircularBuffer.h>
 
 #define repeat(n) for(int i = n; i--;)
 
 
-struct AppConfig {
-    IPAddress WIFI_IP;
-    IPAddress WIFI_GATEWAY;
-    IPAddress WIFI_SUBNET_MASK;
-    IPAddress WIFI_PRIMARY_DNS;
-    IPAddress WIFI_SECONDARY_DNS;
-    const char* WIFI_SSID;
-    const char* WIFI_PASSWORD;
-    const char* BOT_TOKEN;
-    const char* ALLOWED_USER;
-    const IPAddress* PING_HOSTS;
-    uint8_t PING_HOSTS_LENGTH;
-    uint8_t LED_PIN_ESP;  //LED ESP32 выв- 2  для платы с внешним светодиодом
-};
+struct AppConfig
+    {
+        IPAddress WIFI_IP;
+        IPAddress WIFI_GATEWAY;
+        IPAddress WIFI_SUBNET_MASK;
+        IPAddress WIFI_PRIMARY_DNS;
+        IPAddress WIFI_SECONDARY_DNS;
+        const char* WIFI_SSID;
+        const char* WIFI_PASSWORD;
+        const char* BOT_TOKEN;
+        const char* ALLOWED_USER;
+        const IPAddress* PING_HOSTS;
+        uint8_t PING_HOSTS_LENGTH;
+        uint8_t LED_PIN_ESP;  // LED ESP32 вывод - 2
+    };
 
-enum appState { 
-    CONNECTING_TO_WIFI, 
-    MAKE_PING, 
-    CONNECTING_TO_TELEGRAM,
-    PING_FAILED
-};
+enum appState
+    {
+        CONNECTING_TO_WIFI,
+        MAKE_PING,
+        CONNECTING_TO_TELEGRAM,
+        PING_FAILED
+    };
 
-class App 
+class App
     {
         private:
             TaskHandle_t xWifiPingBotHandle = NULL;
             TaskHandle_t xPingWebHandle = NULL;
-            TaskHandle_t xReceiveBufferHandle = NULL;
 
-            appState state = CONNECTING_TO_WIFI;
             AppConfig* localConf;
+            appState state = CONNECTING_TO_WIFI;
 
-            WiFiClientSecure client;
-            UniversalTelegramBot* bot;
+            FastBot* bot;
             CircularBuffer<String, 10> receiveBufferFromMega;
 
         public:
             void transferToTelegram(String buffer)
                 {
-                    if(receiveBufferFromMega.isFull() || state != CONNECTING_TO_TELEGRAM)
+                    if(!receiveBufferFromMega.available() || state != CONNECTING_TO_TELEGRAM)
                         return;
-                    
-                    receiveBufferFromMega.push(buffer); //добавляем строку в кольцевой буффер
-                }
 
+                    receiveBufferFromMega.push(buffer);  // Добавляем строку в кольцевой буффер
+                };
+
+        private:
             void sleepTickTime(uint16_t delayMs)
                 {
                     vTaskDelay(delayMs / portTICK_RATE_MS);
-                }
+                };
 
-            static void primaryStateLoop(void* pv) //основной цикл проверки wifi, ping
+            static void primaryStateLoop(void* parameter)  // Основной цикл проверки wifi, ping
                 {
-                    App* ekz = static_cast<App*>(pv);
+                    App* ekz = static_cast<App*>(parameter);
                     for(;;)
                         {
                             switch(ekz->state)
                                 {
                                     case CONNECTING_TO_WIFI:
                                         {
-                                            ekz->connectToWifi();             
+                                            digitalWrite(ekz->localConf->LED_PIN_ESP, LOW);
+                                            ekz->connectToWifi();
                                             break;
-                                        } 
+                                        }
                                     case MAKE_PING:
                                         {
-                                            ekz->state = ekz->pingWifi() //одноразовый пинг для подкл. к телеграм
-                                                     ? CONNECTING_TO_TELEGRAM 
-                                                     : WiFi.isConnected() 
-                                                        ? PING_FAILED 
+                                            ekz->state = ekz->pingWifi()  // Одноразовый пинг для подкл. к телеграм
+                                                     ? CONNECTING_TO_TELEGRAM
+                                                     : WiFi.isConnected()
+                                                        ? PING_FAILED
                                                         : CONNECTING_TO_WIFI;
-                                            
+
                                             break;
                                         }
                                     case CONNECTING_TO_TELEGRAM:
-                                        {   
+                                        {
                                             //get _updates тут
                                             ekz->readTelegram();
                                             break;
@@ -93,43 +94,44 @@ class App
                                     case PING_FAILED:
                                         {
                                             while(!ekz->pingWifi() && WiFi.isConnected())
-                                                ekz->sleepTickTime(4000); //задержка между пинг, когда он не прошел
+                                                ekz->sleepTickTime(4000);  // Задержка между пинг, когда он не прошел
 
-                                            ekz->state = WiFi.isConnected() 
-                                                ? CONNECTING_TO_TELEGRAM 
+                                            ekz->state = WiFi.isConnected()
+                                                ? CONNECTING_TO_TELEGRAM
                                                 : CONNECTING_TO_WIFI;
                                             break;
                                         }
                                     default:
                                         break;
-                                }
-                        }
+                                };
+                        };
 
                 };
 
-            static void secondaryStateLoop(void* pv) //
+            static void secondaryStateLoop(void* parameter)
                 {
                     Serial.println("secondaryStateLoop");
-                    
-                    App* ekz = static_cast<App*>(pv);
+
+                    App* ekz = static_cast<App*>(parameter);
                     for(;;)
-                        {  
+                        {
                             switch(ekz->state)
                                 {
                                     case CONNECTING_TO_TELEGRAM:
-                                        { 
+                                        {
                                             Serial.println("2 case CONNECTING_TO_TELEGRAM");
-                                            
-                                            // есть подключение к телеграм и будем постоянно проверять Ping 
-                                            while(ekz->pingWifi() && WiFi.isConnected()) {
-                                                Serial.println("Ping. OK..");
-                                                ekz->sleepTickTime(31000); //задержка между пинг, когда он не прошел
-                                            }
+
+                                            // Есть подключение к телеграм и будем постоянно проверять Ping
+                                            while(ekz->pingWifi() && WiFi.isConnected())
+                                                {
+                                                    Serial.println("Ping. OK..");
+                                                    ekz->sleepTickTime(7000);  // Задержка между пинг, когда он не прошел
+                                                };
 
                                             Serial.println("Ping. or Wifi error");
 
-                                            ekz->state = WiFi.isConnected() 
-                                                ? PING_FAILED 
+                                            ekz->state = WiFi.isConnected()
+                                                ? PING_FAILED
                                                 : CONNECTING_TO_WIFI;
 
                                             break;
@@ -143,134 +145,114 @@ class App
                                                 // tics
                                             }
 
-                                            // detach 
+                                            // detach
                                             break;
                                         }
                                     default:
                                         {
-                                            //Serial.print("State -> ");
-                                            //Serial.println(ekz->state);
                                             ekz->sleepTickTime(500);
                                             break;
-                                        }
-                                }
-                        }
-                        Serial.println("IN the end...");
-
+                                        };
+                                };
+                        };
                 };
-        
-        
+
             void resetWifi()
                 {
-                    WiFi.disconnect(); // обрываем WIFI соединения
-                    WiFi.softAPdisconnect(); // отключаем точку доступа, т.е режим роутера
-                    WiFi.mode(WIFI_OFF); // отключаем WIFI
-                    sleepTickTime(500); //задержка 0,5 сек
-                }
-            
+                    WiFi.disconnect();  // Обрываем WIFI соединения
+                    WiFi.softAPdisconnect();  // Отключаем точку доступа, т.е режим роутера
+                    WiFi.mode(WIFI_OFF);  // Отключаем WIFI
+                    sleepTickTime(500);
+                };
+
             void connectToWifi()
                 {
-                    while(!WiFi.isConnected()) //пока не подключено к вифи
+                    while(!WiFi.isConnected())  // Пока не подключено к вифи
                         {
-                            resetWifi(); 
-                            repeat(3) 
+                            resetWifi();
+                            repeat(3)
                                 {
-                                    if(WiFi.isConnected()) //если подключились - вываливаемся
-                                        break; 
+                                    if(WiFi.isConnected())  // Если подключились - вываливаемся
+                                        break;
 
-                                    WiFi.mode(WIFI_STA); // режим клиента
+                                    WiFi.mode(WIFI_STA);  // Режим клиента
                                     WiFi.config(
-                                        localConf->WIFI_IP, 
-                                        localConf->WIFI_GATEWAY, 
-                                        localConf->WIFI_SUBNET_MASK, 
+                                        localConf->WIFI_IP,
+                                        localConf->WIFI_GATEWAY,
+                                        localConf->WIFI_SUBNET_MASK,
                                         localConf->WIFI_PRIMARY_DNS
                                     );
-                                    WiFi.begin(localConf->WIFI_SSID, localConf->WIFI_PASSWORD); 
-                                    sleepTickTime(1000);                      
-                                }
-                        }
-                    state = MAKE_PING; 
-                    digitalWrite(localConf->LED_PIN_ESP, HIGH); 
+                                    WiFi.begin(localConf->WIFI_SSID, localConf->WIFI_PASSWORD);
+                                    sleepTickTime(1000);
+                                };
+                        };
+                    state = MAKE_PING;
+                    digitalWrite(localConf->LED_PIN_ESP, HIGH);
                     Serial.println("wifi connected");
                 }
 
             bool pingWifi()
                 {
-                    for(uint8_t index=0; index < localConf->PING_HOSTS_LENGTH; index++) 
-                      {              
-                        IPAddress pingableHost =  localConf->PING_HOSTS[index];
-                        if(Ping.ping(pingableHost)) 
+                    for(uint8_t index=0; index < localConf->PING_HOSTS_LENGTH; index++)
+                      {
+                        IPAddress pingableHost = localConf->PING_HOSTS[index];
+                        if(Ping.ping(pingableHost))
                           return true;
                       }
-                    return false;  
-                }
+                    return false;
+                };
 
-            
              void readTelegram()
                 {
                     Serial.println("Connected...");
-                    while(bot->getUpdates(bot->last_message_received + 1)) {} //вычитываем старые сообщения
+                    bot->skipUpdates();  // Вычитываем старые сообщения
                     receiveBufferFromMega.clear();
 
-                    while(state == CONNECTING_TO_TELEGRAM) 
+                    bot->showMenu("status \t options \n /help");
+
+                    while(state == CONNECTING_TO_TELEGRAM)
                         {
-                            int newMessages = bot->getUpdates(bot->last_message_received + 1);
-                            while(newMessages)
-                                {
-                                String text = bot->messages[0].text;
-                                // Serial.printf("Received -> %s\n", text);
-                                newMessages = bot->getUpdates(bot->last_message_received + 1);
-                                Serial2.println(text); //передаем в мегу , что есть инет
-                                bot->sendMessage(localConf->ALLOWED_USER,  text, "html"); //мой id - "504052635"
-                                }
+                            bot->tick();
+                            if(!receiveBufferFromMega.isEmpty() && state == CONNECTING_TO_TELEGRAM)
+                                bot->sendMessage(receiveBufferFromMega.shift());  // Первый элемент буфера читаем и удаляем
+                            sleepTickTime(80);
+                        };
+                };
 
-                                // if(newMessages)
-                                //     {
-                                //         String text = bot->messages[0].text;
-                                //         Serial.printf("Received -> %s\n", text);
-                                //         bot->sendMessage(localConf->ALLOWED_USER,  text, "html"); //мой id - "504052635"
-                                //     }
-                                // }
-                            
-                            if(!receiveBufferFromMega.isEmpty() && state == CONNECTING_TO_TELEGRAM) {
-                                //Serial.println("IN");
-                               // String text = receiveBufferFromMega.shift();
-                                //Serial.printf("sending -> %s\n", text);
-                                bot->sendMessage(localConf->ALLOWED_USER, receiveBufferFromMega.shift());  //первый элемент буфера читаем и удаляем
-                            }
+            void receiveNewTelegramMessage(FB_msg& message)
+                {
+                    bot->sendMessage(message.text);  // Echo
 
-                            sleepTickTime(800);
-                        }
-                }
+                    Serial.println(message.text);
+                    Serial2.println(message.text);
+                };
 
         public:
-            App(AppConfig& data) 
+            App(AppConfig& data)
                 {
                     localConf = &data;
-                    bot = new UniversalTelegramBot(localConf->BOT_TOKEN, client);
-                    client.setCACert(TELEGRAM_CERTIFICATE_ROOT); //с 22 июня 2021, без этого с esp32 не работает
-                    pinMode(data.LED_PIN_ESP, OUTPUT);
-                }; 
-            
-            ~App() {};
+                    pinMode(localConf->LED_PIN_ESP, OUTPUT);
+
+                    bot = new FastBot(localConf->BOT_TOKEN);  // Создаем указатель на heap при работе esp
+                    bot->setChatID(localConf->ALLOWED_USER);
+                    bot->setPeriod(500);
+
+                    bot->attach(std::bind(
+                        &App::receiveNewTelegramMessage,
+                        this,
+                        std::placeholders::_1
+                    ));
+                };
+
+            ~App()
+                {
+                    delete bot;
+                };
 
             void run()
                 {
-                    
-                    
-                    
                     xTaskCreate(secondaryStateLoop, "secondaryStateLoop", 8000, static_cast<void*>(this), 1, &xPingWebHandle);
                     xTaskCreate(primaryStateLoop, "primaryStateLoop", 8000, static_cast<void*>(this), 1, &xWifiPingBotHandle);
-                    
-                    // xTaskCreatePinnedToCore(secondaryStateLoop, "secondaryStateLoop", 8000, static_cast<void*>(this), 1, &xPingWebHandle, 1);
-                    // xTaskCreatePinnedToCore(primaryStateLoop, "primaryStateLoop", 8000, static_cast<void*>(this), 1, &xWifiPingBotHandle, 0);
-                }
-
-            void tester() {
-                primaryStateLoop(static_cast<void*>(this));
-            }
-
+                };
     };
-
-
 #endif

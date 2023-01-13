@@ -7,7 +7,7 @@
 
 #define len(object) sizeof(object) / sizeof(*object)
 
-const IPAddress hosts[] = 
+const IPAddress hosts[] =
     {
         IPAddress(8, 8, 8, 8),
         IPAddress(8, 8, 4, 4),
@@ -28,7 +28,4 @@ AppConfig conf {
     .PING_HOSTS_LENGTH = len(hosts),
     .LED_PIN_ESP = 2
 };
-
-
-
 #endif
