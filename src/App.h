@@ -50,7 +50,7 @@ class App
         public:
             void transferToTelegram(String buffer)
                 {
-                    if(!receiveBufferFromMega.available() || state != CONNECTING_TO_TELEGRAM)
+                    if(!receiveBufferFromMega.available() || (state != CONNECTING_TO_TELEGRAM || buffer.isEmpty()))
                         return;
 
                     receiveBufferFromMega.push(buffer);  // Добавляем строку в кольцевой буффер
