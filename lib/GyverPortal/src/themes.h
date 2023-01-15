@@ -29,7 +29,7 @@ input[type=date],input[type=time]{width:180px;}
 input[type=color]{width:80px;height:40px;}
 input[type=checkbox]{width:27px;height:27px;margin-bottom:10px;}
 input[type=number],input[type=text],input[type=password],select,textarea{display:inline-block;border:1px solid #ccc;border-radius:8px;box-sizing:border-box;cursor:auto;}
-textarea{width:auto;max-width:100%}
+textarea{font-size: 14px;width:auto;max-width:100%}
 input[type=submit],input[type=button],button{height:55px;font-size:24px;width:90%;max-width:300px;margin:8px 5px;background-color:#4CAF50;border:none;border-radius:8px;color:white;cursor:pointer;padding:0px 10px;}
 input[type=submit]:hover,input[type=button]:hover,button:hover{filter:brightness(0.95);}
 input[type=button],button{display:flex;align-items:center;justify-content:center;}
@@ -42,7 +42,7 @@ select{width:auto}
 .ledn{margin:9px 10px;}
 .ledn:after{width:20px;height:20px;border-radius:10px;top:-4px;left:-3px;position:relative;content:'';display:inline-block;background-color:#d00;box-shadow: inset 0px 3px #fff7,0px 0px 10px 1px #f00b;}
 .ledn:checked:after{background-color:#3c0;box-shadow:inset 0px 3px #fff7,0px 0px 10px 1px #4d08;}
-.miniButton{min-height:40px;height:auto!important;font-size:20px!important;width:auto!important;}
+.miniButton{display: inline; min-height:40px;height:auto!important;font-size:20px!important;width:auto!important;}
 .switch{margin:10px 2px 5px 2px;position:relative;display:inline-block;width:60px;height:34px}
 .switch input{opacity:0;width:0;height:0}
 .slider{border-radius:34px;position:absolute;cursor:pointer;top:-5px;left:0;right:0;bottom:5px;background-color:#ccc;-webkit-transition:.1s;transition:.1s}
@@ -83,7 +83,7 @@ input[type=button]:disabled,input[type=checkbox]:disabled+.slider:before,input[t
 .dsbl{filter:brightness(0.6);}
 body{-webkit-tap-highlight-color:transparent;}
 .eyepass{position:absolute;margin-left:-35px;margin-top:7px;cursor:pointer;font-size:25px;color:#13161a;}
-.inlBlock{display:inline-block;position:relative}
+.inlBlock{/*display:inline-block*/;position:relative}
 table{border-collapse:collapse;}
 input[type='number']{-moz-appearance:textfield;}
 .header{font-size:25px;color:#fff;}
@@ -151,12 +151,13 @@ label{white-space:nowrap;font-size:20px;margin:0 5px;}
 .thinTab{background:none;border:none;color:#9c9ea1;margin-top:-17px;margin-bottom:5px;display:block;}
 .inliner{display:flex;flex-direction:row;align-content:center;flex-wrap:nowrap;align-items:center;}
 input[type=number],input[type=text],input[type=password],input[type=date],input[type=time],input[type=color],input[type=checkbox],select,textarea{
-width:90%;max-width:200px;border-radius:8px;padding:3px 10px;color:#bbb;border:none;background-color:#2a2d35;vertical-align:middle;position:relative;margin:6px 4px;font-size:20px;height:40px;cursor:pointer;}
+/*width:90%;max-width:200px;*/ border-radius:8px;padding:3px 10px;color:#bbb;border:none;background-color:#2a2d35;vertical-align:middle;position:relative;margin:6px 4px;font-size:20px;height:40px;cursor:pointer;}
 input[type=date],input[type=time]{width:180px;}
 input[type=color]{width:80px;height:40px;}
 input[type=checkbox]{width:27px;height:27px;margin-bottom:10px;}
+input[type=text] {font-size:17px;}
 input[type=number],input[type=text],input[type=password],select,textarea{display:inline-block;border-radius:8px;box-sizing:border-box;cursor:auto;}
-textarea{width:auto;max-width:100%}
+textarea{font-size: 14px;width:auto;max-width:100%}
 input[type=submit],input[type=button],button{height:55px;font-size:24px;width:90%;max-width:300px;margin:8px 5px;background-color:#4CAF50;border:none;border-radius:8px;color:white;cursor:pointer;}
 input[type=submit]:hover,input[type=button]:hover,button:hover{filter:brightness(0.95);}
 input[type=button],button{display:flex;align-items:center;justify-content:center;}
@@ -170,7 +171,7 @@ input:focus,select,textarea:focus{outline:none;}select{width:auto}
 .ledn{margin:9px 10px;}
 .ledn:after{width:20px;height:20px;border-radius:10px;top:-4px;left:-3px;position:relative;content:'';display:inline-block;background-color:#d00;box-shadow:inset 0px 3px 0px 0px #fff7,0px 0px 10px 2px #f00;}
 .ledn:checked:after{background-color: #3c0;box-shadow:inset 0px 3px 0px 0px #fff7,0px 0px 10px 2px #4d0;}
-.miniButton{min-height:40px;height:auto!important;font-size:20px!important;width:auto!important;}
+.miniButton{display: inline; min-height:40px;height:auto!important;font-size:20px!important;width:auto!important;}
 .switch{margin:10px 2px 5px 2px;position:relative;display:inline-block;width:60px;height:34px}
 .switch input{opacity:0;width:0;height:0}
 .slider{border-radius:34px;position:absolute;cursor:pointer;top:-5px;left:0;right:0;bottom:5px;background-color:#54545485;-webkit-transition:.1s;transition:.1s}
@@ -212,7 +213,7 @@ input[type=button]:disabled,input[type=checkbox]:disabled+.slider:before,input[t
 body{-webkit-tap-highlight-color:transparent;}
 input[type=text]:focus,input[type=number]:focus,input[type=password]:focus,input[type=date]:focus,input[type=time]:focus{border:2px solid #666}
 .eyepass{position:absolute;margin-left:-35px;margin-top:7px;cursor:pointer;font-size:25px;color:#0b0c0e;}
-.inlBlock{display:inline-block;position:relative}
+.inlBlock{/*display:inline-block*/;position:relative}
 table{border-collapse:collapse;}
 input[type='number']{-moz-appearance:textfield;}
 .header{font-size:25px;color:#fff;}

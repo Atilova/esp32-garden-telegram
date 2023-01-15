@@ -11,7 +11,6 @@
 #define TXD2 17
 
 App a(conf);
-String ttyData;
 
 void setup() {
     Serial.begin(115200);
@@ -20,32 +19,7 @@ void setup() {
     a.run();
 };
 
-void readMegaSerial()
-  {
-        constexpr static const byte RESPONSE_END = '%',
-                                    SKIP_LINE = '\r';
-
-        while(Serial2.available())
-            {
-                char nextCharacter = Serial2.read();
-                //delay (1);
-
-                // Если перевод в начало внутри текста, пропускаем его, чтобы не было еще одной пустой строки
-                if(nextCharacter == SKIP_LINE)
-                    continue;
-
-                if(nextCharacter == RESPONSE_END)
-                    {
-                        Serial.println("Встретился %, выводим в телегу");
-                        a.transferToTelegram(ttyData);
-                        ttyData.clear();
-                    };
-
-
-                ttyData += nextCharacter;
-            };
-    };
 
 void loop() {
-  readMegaSerial();
+
 };

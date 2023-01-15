@@ -10,8 +10,23 @@
 const IPAddress hosts[] =
     {
         IPAddress(8, 8, 8, 8),
-        IPAddress(8, 8, 4, 4),
-       // IPAddress(195, 26, 17, 129)
+        IPAddress(8, 8, 4, 4)
+    };
+
+const char* webButtons[][2] =
+    {
+        {"status", "btnStatus"},
+        {"info", "btnInfo"},
+        {"list", "btnList"},
+        {"on", "btnOn"},
+        {"shutdown", "btnShutdown"},
+        {"stop", "btnStop"},
+        {"tank", "btnTank"},
+        {"active", "btnActive"},
+        {"active", "btnActive"},
+        {".deep water control", "btnDeepWterContro"},
+        {"options", "btnOptions"},
+        {"/help", "btnHelp"}
     };
 
 AppConfig conf {
@@ -26,6 +41,8 @@ AppConfig conf {
     .ALLOWED_USER = secretConfig.ALLOWED_USER,
     .PING_HOSTS = hosts,
     .PING_HOSTS_LENGTH = len(hosts),
-    .LED_PIN_ESP = 2
+    .WEB_BUTTONS = webButtons,
+    .WEB_BUTTONS_LENGTH = len(webButtons),
+    .ESP_LED_PIN = 2
 };
 #endif
