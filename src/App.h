@@ -10,6 +10,7 @@
 #include <ESPAsyncWebServer.h>
 #include <AsyncEventSource.h>
 #include <ArduinoJson.h>
+#include "Doc.h"
 
 #define repeat(n) for(int i = n; i--;)
 
@@ -129,7 +130,7 @@ class App
                                         }
                                     case CONNECTING_TO_TELEGRAM:
                                         {
-                                            _app->readTelegram();
+                                            _app->updateMessageTelegram();
                                             break;
                                         }
                                     case PING_FAILED:
@@ -205,7 +206,13 @@ class App
                         }
 
                     if(message == "/help")
-                        return transferToTelegramOrWeb("ту будет help");
+                        { 
+                            transferToTelegramOrWeb(helpCommand[0]);
+                            transferToTelegramOrWeb(helpCommand[1]);
+                            transferToTelegramOrWeb(helpCommand[2]);
+                            transferToTelegramOrWeb(helpCommand[3]);
+                            return;
+                        }
 
                     if(message == "/help pump")
                         return transferToTelegramOrWeb("ту будет help pump");
@@ -326,7 +333,7 @@ class App
                     return false;
                 };
 
-             void readTelegram()
+             void updateMessageTelegram()
                 {
                     Serial.println("Connected...");
                     bot->skipUpdates();  // Пропускаем старые сообщения
@@ -358,6 +365,7 @@ class App
                         this,
                         std::placeholders::_1
                     ));
+                    bot->setTextMode(FB_HTML);
                 };
 
         public:
