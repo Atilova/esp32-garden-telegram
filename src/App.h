@@ -28,8 +28,6 @@ struct AppConfig
         const IPAddress* PING_HOSTS;
         uint8_t PING_HOSTS_LENGTH;
         uint32_t WEB_SERVER_PORT;
-        const char* (*WEB_BUTTONS)[2];
-        uint8_t WEB_BUTTONS_LENGTH;
         uint8_t ESP_LED_PIN;  // LED ESP32 вывод - 2
     };
 
@@ -59,7 +57,7 @@ class App
             AsyncWebServer* webServer;
             AsyncEventSource *webSourceEvents;
 
-            void transferToTelegram(String buffer)
+            void transferToTelegramOrWeb(String buffer)
                 {
                     if(!receiveBufferFromMega.available())
                         return;
@@ -89,7 +87,7 @@ class App
 
                                     if(nextCharacter == RESPONSE_END)
                                         {
-                                            _app->transferToTelegram(ttyData);
+                                            _app->transferToTelegramOrWeb(ttyData);
                                             ttyData.clear();
                                             continue;
                                         };
@@ -108,8 +106,8 @@ class App
                                     case CONNECTING_TO_WIFI:
                                         {
                                             _app->connectToWifi();
-                                            // _app->state = MAKE_PING;
-                                            _app->state = TEST;
+                                            _app->state = MAKE_PING;
+                                            // _app->state = TEST;
                                             break;
                                         }
                                     case MAKE_PING:
@@ -175,7 +173,7 @@ class App
 
                                             break;
                                         }
-                                    case TEST: //PING_FAILED:
+                                    case PING_FAILED:
                                         {
                                             Serial.println("2 case PING_FAILED:");
                                             // во время работы телеграма отпал инет, поднимаем Webserver и ждем пинг ок
@@ -190,6 +188,32 @@ class App
                                 };
                         };
                 };
+
+            void handleAnyMessageFromTelegramOrWeb(String& message)
+                {
+                    if(message == "/start")
+                        {
+                            if(state == CONNECTING_TO_TELEGRAM)
+                                bot->showMenuText("Keyboard loaded", "status \t options \n /help");
+
+                            return;
+                        }
+
+                    if(message == "/help")
+                        return transferToTelegramOrWeb("ту будет help");
+
+                    if(message == "/help pump")
+                        return transferToTelegramOrWeb("ту будет help pump");
+
+                    if(message == "ntp")
+                        {
+                            if(state == CONNECTING_TO_TELEGRAM) {}  // Сделать для ntp
+
+                            return;
+                        }
+
+                    Serial2.println(message);  // Все остальное отдаем в мегу
+                }
 
             void setupWebServer()
                 {
@@ -213,16 +237,7 @@ class App
 
                     webSourceEvents = new AsyncEventSource("/updates");
                     webServer->addHandler(webSourceEvents);
-                    webSourceEvents->onConnect(std::bind(
-                        &App::sourceEventOnConnect,
-                        this,
-                        std::placeholders::_1
-                    ));
                 };
-
-            void sourceEventOnConnect(AsyncEventSourceClient *client) {
-                Serial.println("New event");
-            };
 
             void webServerHandleBodyRequest(AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t index, size_t total)
                 {
@@ -234,13 +249,14 @@ class App
                     if(error)
                         return request->send(400);
 
-
                     char buffer[200];
                     serializeJson(jsonBuffer, buffer);
-                    const char* msg = jsonBuffer["message"];
-                    Serial.println(msg);
-                    Serial2.println(msg);
+                    String msg = jsonBuffer["message"].as<String>();
+
+                    Serial.println("in post");
+
                     webSourceEvents->send(buffer, "newUserMessage", millis());
+                    handleAnyMessageFromTelegramOrWeb(msg);
                     return request->send(200);
                 };
 
@@ -248,12 +264,13 @@ class App
                 {
                     webServer->begin();
                     Serial.println("ready");
-                    while(state == TEST) {
+                    while(state == PING_FAILED) {
                         if(!receiveBufferFromMega.isEmpty())
                             webSourceEvents->send(receiveBufferFromMega.shift().c_str(), "newMegaMessage", millis());
 
                         sleepTickTime(100);
                     };
+                    webSourceEvents->close();
                     webServer->end();
                 };
 
@@ -270,7 +287,7 @@ class App
                     digitalWrite(localConf->ESP_LED_PIN, LOW);
                     while(!WiFi.isConnected())  // Пока не подключено к вифи
                         {
-                            resetWifi();
+                           resetWifi();
                             repeat(3)
                                 {
                                     if(WiFi.isConnected())  // Если подключились - вываливаемся
@@ -284,7 +301,7 @@ class App
                                         localConf->WIFI_PRIMARY_DNS
                                     );
                                     WiFi.begin(localConf->WIFI_SSID, localConf->WIFI_PASSWORD);
-                                    sleepTickTime(1000);
+                                    sleepTickTime(5000);
                                 };
                         };
                     digitalWrite(localConf->ESP_LED_PIN, HIGH);
@@ -308,8 +325,6 @@ class App
                     bot->skipUpdates();  // Пропускаем старые сообщения
                     receiveBufferFromMega.clear();  // Очищаем кольцевой буфер
 
-                    bot->showMenu("status \t options \n /help");
-
                     while(state == CONNECTING_TO_TELEGRAM)
                         {
                             bot->tick();
@@ -321,10 +336,9 @@ class App
 
             void receiveNewTelegramMessage(FB_msg& message)
                 {
-                    bot->sendMessage(message.text);  // Echo
-
-                    Serial.println(message.text);
-                    Serial2.println(message.text);
+                    //bot->sendMessage(message.text);  // Echo в телегу
+                    handleAnyMessageFromTelegramOrWeb(message.text);
+                    //Serial2.println(message.text);
                 };
 
             void setupTelegram()
