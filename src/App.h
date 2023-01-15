@@ -9,6 +9,7 @@
 #include <CircularBuffer.h>
 #include <ESPAsyncWebServer.h>
 #include <AsyncEventSource.h>
+#include <ArduinoJson.h>
 
 #define repeat(n) for(int i = n; i--;)
 
@@ -220,31 +221,39 @@ class App
                 };
 
             void sourceEventOnConnect(AsyncEventSourceClient *client) {
-                Serial.println("Here we go");
-
-                // if(client->lastId()) {
-                //     Serial.printf("Client reconnected! Last message ID that it gat is: %u\n", client->lastId());
-                // }
-                client->send("hello!", NULL, millis(), 1000);
-            };            
+                Serial.println("New event");
+            };
 
             void webServerHandleBodyRequest(AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t index, size_t total)
                 {
                     if(request->url() != "/send" || request->method() != HTTP_POST)
                         return request->send(400);
 
-                    const unsigned char* received  = static_cast<const unsigned char*>(data);
-                    Serial.printf("Received-> %s \n", received);
-                    // StaticJsonDocument<400> jsonBuffer;
-                    // DeserializationError error = deserializeJson(jsonBuffer, (const char*)data);
-                    // if(!error && checkAndUpdateConfig(jsonBuffer))
+                    StaticJsonDocument<400> jsonBuffer;
+                    DeserializationError error = deserializeJson(jsonBuffer, (const char*)data);
+                    if(error)
+                        return request->send(400);
+
+
+                    char buffer[200];
+                    serializeJson(jsonBuffer, buffer);
+                    const char* msg = jsonBuffer["message"];
+                    Serial.println(msg);
+                    Serial2.println(msg);
+                    webSourceEvents->send(buffer, "newUserMessage", millis());
                     return request->send(200);
                 };
 
             void startWebServer()
                 {
                     webServer->begin();
-                    while(state == TEST) {};
+                    Serial.println("ready");
+                    while(state == TEST) {
+                        if(!receiveBufferFromMega.isEmpty())
+                            webSourceEvents->send(receiveBufferFromMega.shift().c_str(), "newMegaMessage", millis());
+
+                        sleepTickTime(100);
+                    };
                     webServer->end();
                 };
 
@@ -350,7 +359,7 @@ class App
                 {
                     xTaskCreate(readSerialMega, "readSerialMega", 8000, static_cast<void*>(this), 1, &xSerialMegaHandle);
                     xTaskCreate(primaryStateLoop, "primaryStateLoop", 8000, static_cast<void*>(this), 1, &xWifiPingBotHandle);
-                    xTaskCreate(secondaryStateLoop, "secondaryStateLoop", 8000, static_cast<void*>(this), 1, &xPingWebHandle);
+                    xTaskCreate(secondaryStateLoop, "secondaryStateLoop", 16000, static_cast<void*>(this), 1, &xPingWebHandle);
                 };
     };
 #endif
