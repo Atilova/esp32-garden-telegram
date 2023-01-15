@@ -13,6 +13,15 @@
 
 #define repeat(n) for(int i = n; i--;)
 
+struct tcp_pcb;  // Закрытие открытых неиспользуемых портов tcp.
+                 // Это делать не ранее чем через 2 сек, после выключения web сервера
+extern struct tcp_pcb* tcp_tw_pcbs;
+extern "C" void tcp_abort (struct tcp_pcb* pcb);
+
+void tcpCleanup(void) {
+    while(tcp_tw_pcbs)
+        tcp_abort(tcp_tw_pcbs);
+}
 
 struct AppConfig
     {
@@ -39,7 +48,6 @@ enum appState
         PING_FAILED,
         TEST
     };
-
 
 class App
     {
@@ -107,7 +115,6 @@ class App
                                         {
                                             _app->connectToWifi();
                                             _app->state = MAKE_PING;
-                                            // _app->state = TEST;
                                             break;
                                         }
                                     case MAKE_PING:
@@ -156,8 +163,6 @@ class App
                                 {
                                     case CONNECTING_TO_TELEGRAM:
                                         {
-                                            Serial.println("2 case CONNECTING_TO_TELEGRAM");
-
                                             // Есть подключение к телеграм и будем постоянно проверять Ping
                                             while(_app->pingWifi() && WiFi.isConnected())
                                                 {
@@ -253,8 +258,6 @@ class App
                     serializeJson(jsonBuffer, buffer);
                     String msg = jsonBuffer["message"].as<String>();
 
-                    Serial.println("in post");
-
                     webSourceEvents->send(buffer, "newUserMessage", millis());
                     handleAnyMessageFromTelegramOrWeb(msg);
                     return request->send(200);
@@ -263,15 +266,19 @@ class App
             void startWebServer()
                 {
                     webServer->begin();
-                    Serial.println("ready");
-                    while(state == PING_FAILED) {
-                        if(!receiveBufferFromMega.isEmpty())
-                            webSourceEvents->send(receiveBufferFromMega.shift().c_str(), "newMegaMessage", millis());
+                    Serial.println("WebServer Started");
+                    //будет web сервер, пока не появится инет. Крутимся непрерывно в цикле, до появления инета
+                    while(state == PING_FAILED) 
+                        {
+                            if(!receiveBufferFromMega.isEmpty())
+                                webSourceEvents->send(receiveBufferFromMega.shift().c_str(), "newMegaMessage", millis());
 
-                        sleepTickTime(100);
-                    };
+                            sleepTickTime(100);
+                        };
                     webSourceEvents->close();
                     webServer->end();
+                    sleepTickTime(5000);
+                    tcpCleanup();
                 };
 
             void resetWifi()
