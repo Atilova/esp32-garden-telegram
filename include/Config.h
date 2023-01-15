@@ -24,7 +24,7 @@ const char* webButtons[][2] =
         {"tank", "btnTank"},
         {"active", "btnActive"},
         {"active", "btnActive"},
-        {".deep water control", "btnDeepWterContro"},
+        {".deep water control", "btnDeepWaterControl"},
         {"options", "btnOptions"},
         {"/help", "btnHelp"}
     };
@@ -41,6 +41,7 @@ AppConfig conf {
     .ALLOWED_USER = secretConfig.ALLOWED_USER,
     .PING_HOSTS = hosts,
     .PING_HOSTS_LENGTH = len(hosts),
+    .WEB_SERVER_PORT = 80,
     .WEB_BUTTONS = webButtons,
     .WEB_BUTTONS_LENGTH = len(webButtons),
     .ESP_LED_PIN = 2

@@ -7,6 +7,8 @@
 #include <IPAddress.h>
 #include <FastBot.h>
 #include <CircularBuffer.h>
+#include <ESPAsyncWebServer.h>
+#include <AsyncEventSource.h>
 
 #define repeat(n) for(int i = n; i--;)
 
@@ -24,6 +26,7 @@ struct AppConfig
         const char* ALLOWED_USER;
         const IPAddress* PING_HOSTS;
         uint8_t PING_HOSTS_LENGTH;
+        uint32_t WEB_SERVER_PORT;
         const char* (*WEB_BUTTONS)[2];
         uint8_t WEB_BUTTONS_LENGTH;
         uint8_t ESP_LED_PIN;  // LED ESP32 вывод - 2
@@ -38,6 +41,7 @@ enum appState
         TEST
     };
 
+
 class App
     {
         private:
@@ -47,9 +51,12 @@ class App
 
             AppConfig* localConf;
             appState state = CONNECTING_TO_WIFI;
+            CircularBuffer<String, 10> receiveBufferFromMega;
 
             FastBot* bot;
-            CircularBuffer<String, 10> receiveBufferFromMega;
+
+            AsyncWebServer* webServer;
+            AsyncEventSource *webSourceEvents;
 
             void transferToTelegram(String buffer)
                 {
@@ -183,12 +190,62 @@ class App
                         };
                 };
 
+            void setupWebServer()
+                {
+                    webServer = new AsyncWebServer(localConf->WEB_SERVER_PORT);
+
+                    DefaultHeaders::Instance().addHeader("Access-Control-Allow-Origin", "*");
+
+                    webServer->onRequestBody(std::bind(
+                        &App::webServerHandleBodyRequest,
+                        this,
+                        std::placeholders::_1,
+                        std::placeholders::_2,
+                        std::placeholders::_3,
+                        std::placeholders::_4,
+                        std::placeholders::_5
+                    ));
+
+                    webServer->onNotFound([](AsyncWebServerRequest *request) {
+                        request->send(404, "text/html", "<script>location.replace(\"/\");</script>");
+                    });
+
+                    webSourceEvents = new AsyncEventSource("/updates");
+                    webServer->addHandler(webSourceEvents);
+                    webSourceEvents->onConnect(std::bind(
+                        &App::sourceEventOnConnect,
+                        this,
+                        std::placeholders::_1
+                    ));
+                };
+
+            void sourceEventOnConnect(AsyncEventSourceClient *client) {
+                Serial.println("Here we go");
+
+                // if(client->lastId()) {
+                //     Serial.printf("Client reconnected! Last message ID that it gat is: %u\n", client->lastId());
+                // }
+                client->send("hello!", NULL, millis(), 1000);
+            };            
+
+            void webServerHandleBodyRequest(AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t index, size_t total)
+                {
+                    if(request->url() != "/send" || request->method() != HTTP_POST)
+                        return request->send(400);
+
+                    const unsigned char* received  = static_cast<const unsigned char*>(data);
+                    Serial.printf("Received-> %s \n", received);
+                    // StaticJsonDocument<400> jsonBuffer;
+                    // DeserializationError error = deserializeJson(jsonBuffer, (const char*)data);
+                    // if(!error && checkAndUpdateConfig(jsonBuffer))
+                    return request->send(200);
+                };
+
             void startWebServer()
                 {
-                    while(state == TEST)
-                        {
-
-                        };
+                    webServer->begin();
+                    while(state == TEST) {};
+                    webServer->end();
                 };
 
             void resetWifi()
@@ -279,11 +336,14 @@ class App
                     localConf = &data;
                     pinMode(localConf->ESP_LED_PIN, OUTPUT);
                     setupTelegram();
+                    setupWebServer();
                 };
 
             ~App()
                 {
                     delete bot;
+                    delete webServer;
+                    delete webSourceEvents;
                 };
 
             void run()
@@ -291,7 +351,6 @@ class App
                     xTaskCreate(readSerialMega, "readSerialMega", 8000, static_cast<void*>(this), 1, &xSerialMegaHandle);
                     xTaskCreate(primaryStateLoop, "primaryStateLoop", 8000, static_cast<void*>(this), 1, &xWifiPingBotHandle);
                     xTaskCreate(secondaryStateLoop, "secondaryStateLoop", 8000, static_cast<void*>(this), 1, &xPingWebHandle);
-
                 };
     };
 #endif
