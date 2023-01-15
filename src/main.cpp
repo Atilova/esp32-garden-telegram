@@ -14,7 +14,7 @@ App a(conf);
 
 void setup() {
     Serial.begin(115200);
-    Serial2.begin(115200, SERIAL_8N1, RXD2, TXD2); //порт обмена с  мегой
+    Serial2.begin(115200, SERIAL_8N1, RXD2, TXD2);
 
     a.run();
 };

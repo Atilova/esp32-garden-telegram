@@ -7,15 +7,9 @@
 #include <IPAddress.h>
 #include <FastBot.h>
 #include <CircularBuffer.h>
-#include <GyverPortal.h>
 
 #define repeat(n) for(int i = n; i--;)
 
-
-struct PortalOptions
-    {
-        bool needToCleanCommandInput = false;
-    };
 
 struct AppConfig
     {
@@ -57,9 +51,6 @@ class App
             FastBot* bot;
             CircularBuffer<String, 10> receiveBufferFromMega;
 
-            GyverPortal ui;
-            PortalOptions portalOptions;
-
             void transferToTelegram(String buffer)
                 {
                     if(!receiveBufferFromMega.available())
@@ -67,28 +58,28 @@ class App
 
                     receiveBufferFromMega.push(buffer);  // Добавляем строку в кольцевой буффер
                 };
-                    
+
             void sleepTickTime(uint16_t delayMs)
                 {
                     vTaskDelay(delayMs / portTICK_RATE_MS);
                 };
 
-            static void readSerialMega(void* parameter) 
-                {   
+            static void readSerialMega(void* parameter)
+                {
                     constexpr static const char RESPONSE_END = '%',
                                                 SKIP_LINE = '\r';
                     String ttyData;
                     App* _app = static_cast<App*>(parameter);
-                   
+
                     for(;;)
                         {
-                            while(Serial2.available()) 
+                            while(Serial2.available())
                                 {
                                     char nextCharacter = Serial2.read();
-                                    if(nextCharacter == SKIP_LINE) 
+                                    if(nextCharacter == SKIP_LINE)
                                         continue;
 
-                                    if(nextCharacter == RESPONSE_END)   
+                                    if(nextCharacter == RESPONSE_END)
                                         {
                                             _app->transferToTelegram(ttyData);
                                             ttyData.clear();
@@ -138,11 +129,11 @@ class App
                                                 : CONNECTING_TO_WIFI;
                                             break;
                                         }
-                                    default: 
+                                    default:
                                         {
                                             _app->sleepTickTime(500);
                                             break;
-                                        }
+                                        };
                                 };
                         };
 
@@ -185,91 +176,19 @@ class App
                                         }
                                     default:
                                         {
-                                            _app->sleepTickTime(500); //категорически не убирать задержку!!!!не будет работать!!!
+                                            _app->sleepTickTime(500);  // Категорически не убирать задержку!!!!не будет работать!!!
                                             break;
                                         };
                                 };
                         };
                 };
 
-            void buildWebPage()
-                {
-                    GP.BUILD_BEGIN(1010);
-                    GP.THEME(GP_DARK);
-                    GP.PAGE_TITLE("Garden");
-
-                    GP.UPDATE("txt1");
-                    
-                    // GP.HR();
-
-                    
-                    GP.BUTTON_MINI("btn2", "status");
-                    GP.BUTTON_MINI("btn3", "info");
-                    GP.BUTTON_MINI("btn4", "list");
-                    GP.BUTTON_MINI("btn5", "on");
-                    GP.BUTTON_MINI("btn6", "shutdown");
-                    GP.BUTTON_MINI("btn7", "stop");
-                    GP.BUTTON_MINI("btn8", "tank");
-                    GP.BUTTON_MINI("btn9", "active");
-                    GP.BUTTON_MINI("btn10", ".deep water control");
-                    GP.BUTTON_MINI("btn11", "options");
-                    GP.BUTTON_MINI("btn12", "/help");
-                    GP.BREAK();
-                    // GP.HR();
-
-                    GP.TEXT("txt1", "","","83%");
-                    GP.BUTTON_MINI("btn1", "Send", "txt1");
-                    GP.BREAK();
-                    GP.AREA_LOG(30, 1000, "90%");
-                    GP.BREAK();
-
-                    GP.BUILD_END();
-                }
-
-            void action() 
-                {
-                    if(ui.update() && portalOptions.needToCleanCommandInput) 
-                        {
-                            String emptyInput = "\r\n";
-                            portalOptions.needToCleanCommandInput = false;
-                            ui.updateString("txt1", emptyInput);
-                        };
-
-                    
-                    
-
-
-                    if(ui.click("btn1")) 
-                        {
-                            Serial.print("IN btn1 -> ");
-                            // отправляем обратно в "монитор" содержимое поля, оно пришло по клику кнопки
-                            
-                            String msg = ui.getString("btn1");
-                            Serial2.println(msg);
-                            ui.log.println(msg);                             
-                            portalOptions.needToCleanCommandInput = true;                            
-                        };
-                };
-
             void startWebServer()
                 {
-                    Serial.println("Starting WebServer...");
-                    ui.start();
-                    ui.log.start(5000);
-                                        
                     while(state == TEST)
                         {
-                            ui.tick();
-                            if(!receiveBufferFromMega.isEmpty())
-                                {
-                                    ui.log.println("_________________________________________");
-                                    ui.log.println(receiveBufferFromMega.shift());
-                                }
-                            sleepTickTime(90);
-                        };
 
-                    ui.stop();
-                    ui.log.stop();
+                        };
                 };
 
             void resetWifi()
@@ -311,17 +230,17 @@ class App
                     for(uint8_t index=0; index < localConf->PING_HOSTS_LENGTH; index++)
                       {
                         IPAddress pingableHost = localConf->PING_HOSTS[index];
-                        if(Ping.ping(pingableHost, 2)) //сделаем две попытки пинга, если он не проходит
+                        if(Ping.ping(pingableHost, 2))  // Сделаем две попытки пинга, если он не проходит
                           return true;
-                      }
+                      };
                     return false;
                 };
 
              void readTelegram()
                 {
                     Serial.println("Connected...");
-                    bot->skipUpdates();  // пропускаем старые сообщения
-                    receiveBufferFromMega.clear(); // очищаем кольцевой буфер
+                    bot->skipUpdates();  // Пропускаем старые сообщения
+                    receiveBufferFromMega.clear();  // Очищаем кольцевой буфер
 
                     bot->showMenu("status \t options \n /help");
 
@@ -330,7 +249,7 @@ class App
                             bot->tick();
                             if(!receiveBufferFromMega.isEmpty())
                                 bot->sendMessage(receiveBufferFromMega.shift());  // Первый элемент буфера читаем и удаляем
-                            sleepTickTime(100); //80
+                            sleepTickTime(100);
                         };
                 };
 
@@ -342,31 +261,24 @@ class App
                     Serial2.println(message.text);
                 };
 
-        public:
-            App(AppConfig& data)
+            void setupTelegram()
                 {
-                    localConf = &data;
-                    pinMode(localConf->ESP_LED_PIN, OUTPUT);
-
                     bot = new FastBot(localConf->BOT_TOKEN);  // Создаем указатель на heap при работе esp
                     bot->setChatID(localConf->ALLOWED_USER);
                     bot->setPeriod(500);
-
                     bot->attach(std::bind(
                         &App::receiveNewTelegramMessage,
                         this,
                         std::placeholders::_1
                     ));
+                };
 
-                    ui.attachBuild(std::bind(
-                        &App::buildWebPage,
-                        this
-                    ));
-
-                    ui.attach(std::bind(
-                        &App::action,
-                        this
-                    ));
+        public:
+            App(AppConfig& data)
+                {
+                    localConf = &data;
+                    pinMode(localConf->ESP_LED_PIN, OUTPUT);
+                    setupTelegram();
                 };
 
             ~App()
@@ -375,7 +287,7 @@ class App
                 };
 
             void run()
-                {   
+                {
                     xTaskCreate(readSerialMega, "readSerialMega", 8000, static_cast<void*>(this), 1, &xSerialMegaHandle);
                     xTaskCreate(primaryStateLoop, "primaryStateLoop", 8000, static_cast<void*>(this), 1, &xWifiPingBotHandle);
                     xTaskCreate(secondaryStateLoop, "secondaryStateLoop", 8000, static_cast<void*>(this), 1, &xPingWebHandle);
