@@ -10,6 +10,7 @@
 #include <ESPAsyncWebServer.h>
 #include <AsyncEventSource.h>
 #include <ArduinoJson.h>
+#include "time.h"
 #include "Doc.h"
 
 #define repeat(n) for(int i = n; i--;)
@@ -17,12 +18,13 @@
 struct tcp_pcb;  // Закрытие открытых неиспользуемых портов tcp.
                  // Это делать не ранее чем через 2 сек, после выключения web сервера
 extern struct tcp_pcb* tcp_tw_pcbs;
-extern "C" void tcp_abort (struct tcp_pcb* pcb);
+extern "C" void tcp_abort(struct tcp_pcb* pcb);
 
-void tcpCleanup(void) {
-    while(tcp_tw_pcbs)
-        tcp_abort(tcp_tw_pcbs);
-}
+void tcpCleanup(void)
+    {
+        while(tcp_tw_pcbs)
+            tcp_abort(tcp_tw_pcbs);
+    }
 
 struct AppConfig
     {
@@ -38,6 +40,7 @@ struct AppConfig
         const IPAddress* PING_HOSTS;
         uint8_t PING_HOSTS_LENGTH;
         uint32_t WEB_SERVER_PORT;
+        const char* LOCAL_TIMEZONE;
         uint8_t ESP_LED_PIN;  // LED ESP32 вывод - 2
     };
 
@@ -72,6 +75,51 @@ class App
                         return;
 
                     receiveBufferFromMega.push(buffer);  // Добавляем строку в кольцевой буффер
+                };
+
+            void checkServiceCodeOrTransfer()
+                {
+                    if(receiveBufferFromMega.isEmpty())
+                        return;
+
+                    String message = receiveBufferFromMega.shift();
+
+                    if(message == "2560ask?:inet")
+                        return checkInternet();  // Возвратим меге inet.ok, если состояние CONNECTING_TO_TELEGRAM, иначе inet.no
+
+                    if(message == "2560ask?:ntp")  // Синхронизация времени и дня недели для меги
+                        return ntpSynchronization();
+
+                    if(checkState(CONNECTING_TO_TELEGRAM))
+                        bot->sendMessage(message);
+                    else
+                        webSourceEvents->send(message.c_str(), "newMegaMessage", millis());
+                };
+
+            void checkInternet()
+                {
+                    Serial2.println(checkState(CONNECTING_TO_TELEGRAM) ? "inet.ok" : "inet.no");
+                };
+
+            void ntpSynchronization()
+                {
+                    tm timeinfo;
+
+                    configTime(0, 0, "pool.ntp.org");  // Забираем время из инета
+                    setenv("TZ", localConf->LOCAL_TIMEZONE, 1);
+                    tzset();
+
+                    if(!getLocalTime(&timeinfo))
+                        return transferToTelegramOrWeb("NTP:Ошибка синхронизации времени");
+
+                    //Serial.println(&timeinfo, "%A, %B %d %Y %H:%M:%S zone %Z %z ");
+                    Serial2.printf("time=%02d:%02d:%02d\r\n", timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
+                    Serial2.printf("day=%d\r\n", timeinfo.tm_wday);
+                };
+
+            boolean checkState(appState stateToCheck)
+                {
+                   return state == stateToCheck;  // Если state равен stateToCheck - вернем true, иначе false
                 };
 
             void sleepTickTime(uint16_t delayMs)
@@ -165,10 +213,11 @@ class App
                                     case CONNECTING_TO_TELEGRAM:
                                         {
                                             // Есть подключение к телеграм и будем постоянно проверять Ping
+                                            _app->checkInternet(); // Передаем inet.ok в мегу
                                             while(_app->pingWifi() && WiFi.isConnected())
                                                 {
                                                     Serial.println("Ping. OK..");
-                                                    _app->sleepTickTime(7000);  // Задержка между пинг, когда он прошел
+                                                    _app->sleepTickTime(10000);  // Задержка между пинг, когда он прошел
                                                 };
 
                                             Serial.println("Ping. or Wifi error");
@@ -182,7 +231,8 @@ class App
                                     case PING_FAILED:
                                         {
                                             Serial.println("2 case PING_FAILED:");
-                                            // во время работы телеграма отпал инет, поднимаем Webserver и ждем пинг ок
+                                            // Во время работы телеграма отпал инет, поднимаем Webserver и ждем пинг ок
+                                            _app->checkInternet();  // Передаем inet.no в мегу
                                             _app->startWebServer();
                                             break;
                                         }
@@ -200,32 +250,41 @@ class App
                     if(message == "/start")
                         {
                             if(state == CONNECTING_TO_TELEGRAM)
-                                bot->showMenuText("Keyboard loaded", "status \t options \n /help");
-
+                                bot->showMenuText("Keyboard loaded", "status \t options \t memory\n /help \t /help power");
                             return;
-                        }
+                        };
 
                     if(message == "/help")
-                        { 
+                        {
                             transferToTelegramOrWeb(helpCommand[0]);
                             transferToTelegramOrWeb(helpCommand[1]);
                             transferToTelegramOrWeb(helpCommand[2]);
-                            transferToTelegramOrWeb(helpCommand[3]);
-                            return;
-                        }
+                            return transferToTelegramOrWeb(helpCommand[3]);
+                        };
 
-                    if(message == "/help pump")
-                        return transferToTelegramOrWeb("ту будет help pump");
+                    if(message == "/help power")
+                        {
+                            transferToTelegramOrWeb(helpCommand[4]);
+                            return transferToTelegramOrWeb(helpCommand[5]);
+                        };
+
 
                     if(message == "ntp")
                         {
-                            if(state == CONNECTING_TO_TELEGRAM) {}  // Сделать для ntp
-
+                            if(state == CONNECTING_TO_TELEGRAM)
+                                ntpSynchronization();
                             return;
-                        }
+                        };
+
+                    if(message == "memory")
+                        {
+                            char buffer[64];
+                            sprintf(buffer, " > Free memory ESP = %d", ESP.getFreeHeap());
+                            return transferToTelegramOrWeb(buffer);
+                        };
 
                     Serial2.println(message);  // Все остальное отдаем в мегу
-                }
+                };
 
             void setupWebServer()
                 {
@@ -261,7 +320,7 @@ class App
                     if(error)
                         return request->send(400);
 
-                    char buffer[200];
+                    char buffer[500];
                     serializeJson(jsonBuffer, buffer);
                     String msg = jsonBuffer["message"].as<String>();
 
@@ -274,17 +333,14 @@ class App
                 {
                     webServer->begin();
                     Serial.println("WebServer Started");
-                    //будет web сервер, пока не появится инет. Крутимся непрерывно в цикле, до появления инета
-                    while(state == PING_FAILED) 
+                    while(state == PING_FAILED)
                         {
-                            if(!receiveBufferFromMega.isEmpty())
-                                webSourceEvents->send(receiveBufferFromMega.shift().c_str(), "newMegaMessage", millis());
-
+                            checkServiceCodeOrTransfer();
                             sleepTickTime(100);
                         };
                     webSourceEvents->close();
                     webServer->end();
-                    sleepTickTime(5000);
+                    sleepTickTime(5000);  // Do not remove, wait for gracefull server end, before tcpCleanup()
                     tcpCleanup();
                 };
 
@@ -338,21 +394,19 @@ class App
                     Serial.println("Connected...");
                     bot->skipUpdates();  // Пропускаем старые сообщения
                     receiveBufferFromMega.clear();  // Очищаем кольцевой буфер
+                    bot->sendMessage("🟢 Esp online");
 
                     while(state == CONNECTING_TO_TELEGRAM)
                         {
                             bot->tick();
-                            if(!receiveBufferFromMega.isEmpty())
-                                bot->sendMessage(receiveBufferFromMega.shift());  // Первый элемент буфера читаем и удаляем
-                            sleepTickTime(100);
+                            checkServiceCodeOrTransfer();
+                            sleepTickTime(30);
                         };
                 };
 
             void receiveNewTelegramMessage(FB_msg& message)
                 {
-                    //bot->sendMessage(message.text);  // Echo в телегу
                     handleAnyMessageFromTelegramOrWeb(message.text);
-                    //Serial2.println(message.text);
                 };
 
             void setupTelegram()
@@ -365,7 +419,7 @@ class App
                         this,
                         std::placeholders::_1
                     ));
-                    bot->setTextMode(FB_HTML);
+                    bot->setTextMode(FB_TEXT);
                 };
 
         public:

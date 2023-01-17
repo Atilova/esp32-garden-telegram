@@ -26,6 +26,7 @@ AppConfig conf {
     .PING_HOSTS = hosts,
     .PING_HOSTS_LENGTH = len(hosts),
     .WEB_SERVER_PORT = 80,
+    .LOCAL_TIMEZONE = "EET-2EEST,M3.5.0/3,M10.5.0/4",
     .ESP_LED_PIN = 2
 };
 #endif
