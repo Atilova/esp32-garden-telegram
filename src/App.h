@@ -49,8 +49,12 @@ enum appState
         CONNECTING_TO_WIFI,
         MAKE_PING,
         CONNECTING_TO_TELEGRAM,
-        PING_FAILED,
-        TEST
+        PING_FAILED
+    };
+
+struct AppValues
+    {
+        char* tzEnvPointer = nullptr;
     };
 
 class App
@@ -68,6 +72,8 @@ class App
 
             AsyncWebServer* webServer;
             AsyncEventSource *webSourceEvents;
+
+            AppValues values;
 
             void addMessageToBuffer(const String& buffer)
                 {
@@ -90,7 +96,7 @@ class App
                         return checkInternet();  // Возвратим меге inet.ok, если состояние CONNECTING_TO_TELEGRAM, иначе inet.no
 
                     if(!strcmp(message, "2560ask?:ntp"))  // Синхронизация времени и дня недели для меги
-                        return ntpSynchronization();
+                        return runNtpSynchronization();
 
                     if(checkState(CONNECTING_TO_TELEGRAM))  // Все остальное выводим в телеграм или в web
                         bot->sendMessage(message);
@@ -105,20 +111,19 @@ class App
                     Serial2.println(checkState(CONNECTING_TO_TELEGRAM) ? "inet.ok" : "inet.no");
                 };
 
-            void ntpSynchronization()
+            void runNtpSynchronization()
                 {
-                    tm timeinfo;
+                    tm datetime;
 
-                    // Temporary moved
-                    //configTime(0, 0, "pool.ntp.org");  // Забираем время из инета
-                    //setenv("TZ", localConf->LOCAL_TIMEZONE, 1);
-                    //tzset();
+                    configTime(0, 0, "pool.ntp.org");  // Забираем время из инета
+                    strcpy(values.tzEnvPointer, localConf->LOCAL_TIMEZONE);
+                    tzset();
 
-                    if(!getLocalTime(&timeinfo))
+                    if(!getLocalTime(&datetime))
                         return addMessageToBuffer("NTP:Ошибка синхронизации времени");
 
-                    Serial2.printf("time=%02d:%02d:%02d\r\n", timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
-                    Serial2.printf("day=%d\r\n", timeinfo.tm_wday);
+                    Serial2.printf("time=%02d:%02d:%02d\r\n", datetime.tm_hour, datetime.tm_min, datetime.tm_sec);
+                    Serial2.printf("day=%d\r\n", datetime.tm_wday);
                 };
 
           void getFreeHeapSize()
@@ -221,21 +226,12 @@ class App
                                 {
                                     case CONNECTING_TO_TELEGRAM:
                                         {
-                                            // Есть подключение к телеграм, значит есть инет, забираем время из инет и устанавливаем
-                                            //правильную timezone в системе esp32
-                                            configTime(0, 0, "pool.ntp.org");  // Забираем время из инета
-                                            setenv("TZ", _app->localConf->LOCAL_TIMEZONE, 1);
-                                            tzset();
-
                                             _app->checkInternet(); // Передаем inet.ok в мегу
-                                            // Есть подключение к телеграм и будем постоянно проверять Ping
-                                            while(_app->pingWifi() && WiFi.isConnected())
+                                            while(_app->pingWifi() && WiFi.isConnected())  // Есть подключение к телеграм и будем постоянно проверять Ping
                                                 {
                                                     Serial.println("Ping. OK..");
                                                     _app->sleepTickTime(10000);  // Задержка между пинг, когда он прошел
                                                 };
-
-                                            Serial.println("Ping. or Wifi error");
 
                                             _app->state = WiFi.isConnected()
                                                 ? PING_FAILED
@@ -243,37 +239,34 @@ class App
 
                                             break;
                                         }
-                                    case PING_FAILED:
+                                    case PING_FAILED:  // Во время работы телеграма отпал инет, поднимаем Webserver и ждем пинг ок
                                         {
-                                            // Во время работы телеграма отпал инет, поднимаем Webserver и ждем пинг ок
                                             _app->checkInternet();  // Передаем inet.no в мегу
                                             _app->startWebServer();
                                             break;
                                         }
                                     default:
                                         {
-                                            _app->sleepTickTime(500);  // Категорически не убирать задержку!!!!не будет работать!!!
+                                            _app->sleepTickTime(500);  // Категорически не убирать задержку!!!! не будет работать!!!
                                             break;
                                         };
                                 };
                         };
                 };
 
+            void sendHelpPages(uint8_t startIndex, uint8_t endIndex)
+                {
+                    for(uint8_t index = startIndex; index <= endIndex; index++)
+                        addMessageToBuffer(helpCommand[index]);
+                };
+
             void handleAnyMessageFromTelegramOrWeb(String& message)
                 {
                     if(message == "/help")
-                        {
-                            addMessageToBuffer(helpCommand[0]);
-                            addMessageToBuffer(helpCommand[1]);
-                            addMessageToBuffer(helpCommand[2]);
-                            return addMessageToBuffer(helpCommand[3]);
-                        };
+                        return sendHelpPages(0, 3);
 
                     if(message == "/help power")
-                        {
-                            addMessageToBuffer(helpCommand[4]);
-                            return addMessageToBuffer(helpCommand[5]);
-                        };
+                        return sendHelpPages(4, 5);
 
                     if(message == "memory")
                         return getFreeHeapSize();
@@ -380,14 +373,14 @@ class App
                     Serial.println("wifi connected");
                 };
 
-            bool pingWifi()
+            boolean pingWifi()
                 {
                     for(uint8_t index=0; index < localConf->PING_HOSTS_LENGTH; index++)
-                      {
-                        IPAddress pingableHost = localConf->PING_HOSTS[index];
-                        if(Ping.ping(pingableHost, 2))  // Сделаем две попытки пинга, если он не проходит
-                          return true;
-                      };
+                        {
+                            IPAddress pingableHost = localConf->PING_HOSTS[index];
+                            if(Ping.ping(pingableHost, 2))  // Сделаем две попытки пинга, если он не проходит
+                                return true;
+                        };
                     return false;
                 };
 
@@ -397,7 +390,6 @@ class App
                     bot->skipUpdates();  // Пропускаем старые сообщения
                     receiveBufferFromMega.clear();  // Очищаем кольцевой буфер
                     bot->sendMessage("🟢 Esp online");
-                    // getFreeHeapSize();
                     while(state == CONNECTING_TO_TELEGRAM)
                         {
                             bot->tick();
@@ -410,14 +402,12 @@ class App
                 {
                     if(message.text == "/start")
                         {
-                            //bot->showMenu("status \t info \t on \t stdby \t shutdown \n tank \t tank reset \t active \t deep water \n options \t save \t apol on \t apol off \n list \t skip \t go \t pause \t stop \t break\n pool on \t pool off \t skimmer on \t skimmer off \n .deep block \t .garden block \n ntp \t reboot \t balance");
-
-                             bot->showMenuText("Keyboard loaded", telegramVirtualKeyboard);
+                            bot->showMenuText("Keyboard loaded", telegramVirtualKeyboard);
                             return;
                         };
 
                     if(message.text == "ntp")
-                        return ntpSynchronization();
+                        return runNtpSynchronization();
 
                     handleAnyMessageFromTelegramOrWeb(message.text);  // Получаем сообщение и телеграма
                 };
@@ -435,6 +425,14 @@ class App
                     bot->setTextMode(FB_TEXT);
                 };
 
+            void setupTimezone()
+                {
+                    unsetenv("TZ");
+                    setenv("TZ", localConf->LOCAL_TIMEZONE, 1);
+                    tzset();
+                    values.tzEnvPointer = getenv("TZ");  // Instead of using setenv - (memory leak), use this pointer and strcpy
+                };
+
         public:
             App(AppConfig& data)
                 {
@@ -442,6 +440,7 @@ class App
                     pinMode(localConf->ESP_LED_PIN, OUTPUT);
                     setupTelegram();
                     setupWebServer();
+                    setupTimezone();
                 };
 
             ~App()
