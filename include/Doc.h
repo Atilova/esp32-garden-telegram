@@ -175,3 +175,5 @@ ____________
 <i>page 2</i>
 )rawliteral"
 };
+
+const char* telegramVirtualKeyboard = "status \t info \t on \t stdby \t shutdown \n tank \t tank reset \t active \t deep water \n options \t save \t zona0 \t apol on \t apol off \n list \t skip \t go \t pause \t stop \t break\n pool on \t pool off \t skimmer on \t skimmer off \n .deep block \t .garden block \n ntp \t reboot \t memory \t balance";
