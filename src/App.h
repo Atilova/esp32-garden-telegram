@@ -74,6 +74,7 @@ class App
             AsyncEventSource *webSourceEvents;
 
             AppValues values;
+            StaticJsonDocument<500> jsonBuffer;
 
             void addMessageToBuffer(const String& buffer)
                 {
@@ -310,13 +311,12 @@ class App
                     if(request->url() != "/send" || request->method() != HTTP_POST)
                         return request->send(400);
 
-                    StaticJsonDocument<400> jsonBuffer;
                     DeserializationError error = deserializeJson(jsonBuffer, (const char*)data);
                     if(error)
                         return request->send(400);
 
                     char buffer[500];
-                    serializeJson(jsonBuffer, buffer);
+                    serializeJson(jsonBuffer, buffer);  // strcpy(buffer, (const char*)data);
                     String msg = jsonBuffer["message"].as<String>();
 
                     webSourceEvents->send(buffer, "newUserMessage", millis());
