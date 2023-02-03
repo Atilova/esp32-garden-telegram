@@ -266,7 +266,7 @@ class App
                     if(message == "/help")
                         return sendHelpPages(0, 3);
 
-                    if(message == "/help power")
+                    if(message == "/helppower")
                         return sendHelpPages(4, 5);
 
                     if(message == "memory")
@@ -422,7 +422,7 @@ class App
                         this,
                         std::placeholders::_1
                     ));
-                    bot->setTextMode(FB_TEXT);
+                    bot->setTextMode(FB_HTML);
                 };
 
             void setupTimezone()

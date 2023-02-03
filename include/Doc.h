@@ -24,8 +24,6 @@ R"rawliteral(
 )rawliteral",
 
 R"rawliteral(
- ____________
-
 <b>.active</b>=<i>1-24</i> : установить кол-во действующих зон полива, max=24
 <b>time utro</b>=<i>02:27</i> :  уст. время старта утреннего автополива
 <b>time vecher</b>=<i>16:34</i> : уст. время старта вечернего автополива
@@ -54,15 +52,14 @@ R"rawliteral(
 )rawliteral",
 
 R"rawliteral(
-____________
+<b>status</b> : текущие параметры системы
+<b>info</b> : информация о поливе в мульти- или автополиве
 
 <b>on</b> : режим мы на даче
-<b>stdby</b> : дежурный режим наполнения
 <b>shutdown</b> :  система выключена, но активна
-
+<b>stdby</b> : дежурный режим наполнения
 <b>.stdby</b> : Вкл/Выкл авто выхода в shutdown, после наполнения емкости
 
-<b>status</b> : текущие параметры системы
 <b>options</b> : вывести настойки системы из EEprom
 <b>save</b> : сохранить текущие настройки системы в EEprom
 
@@ -90,25 +87,24 @@ x=<i>on/off</i> (вкл/выкл);  x=<i>t</i> -время из расписан
 )rawliteral",
 
 R"rawliteral(
-____________
-
 <b>time=</b><i>ЧЧ:MM</i> : установить время
 <b>day=</b><i>0:7</i> : задать текущ. день недели 0-7 (воскр-субб)
 <b>ntp</b> : синхронизировать время и день недели с ntp сервером
 <b>.ntp</b> : вкл/выкл авто синхр при перезагрузке
 
+<b>reboot</b> : перезагрузка ESP32
 <b>reboot mega</b> : перезагрузка MEGA
 <b>reboot gsm</b> : перезагрузка только GSM модуля SIM800L
 <b>reboot dispetcher</b> : перезагрузка Диспетчера Ати-Лева
 
+<b>memory</b> : размер свободного HEAP ESP32
+<b>mem</b> :free свободная RAM mega2560
 <b>balance</b> : состояние счета SIM карты
-<b>mem</b> :free RAM mega2560
-<b>mem esp</b> :free RAM ESP32
 
 <b>/start</b> : загрузка вирт. клавиатуры
 
 <b>/help</b> : команды общие и зоны полива
-<b>/help power</b> : команды силовые цепи и насосы
+<b>/helppower</b> : команды силовые цепи и насосы
 <b>/help alarm</b> : не поддерживаются, команды охранной системы
 <b>/help storm</b> : не поддерживаются, команды модуля грозы
 
@@ -116,7 +112,7 @@ ____________
 )rawliteral",
 
 R"rawliteral(
-<u><i>КОМАНДЫ СИЛОВОЙ ЧАСТИ И УПРАВЛЕНИЯ НАСОСАМИ</i></u>
+<u><i>КОМАНДЫ УПРАВЛЕНИЯ СИЛОВОЙ ЧАСТЬЮ И НАСОСАМИ</i></u>
 
 <b>ac high=</b><i>221-255</i> : (B), верхний порог, для AC 'норма'
 <b>ac low=</b><i>150-220</i> : (B), нижний порог, для AC 'норма'
@@ -141,15 +137,14 @@ R"rawliteral(
 <b>.restore poliv</b> : Вкл/Выкл восстановление реле и зон полива при восстановлении AC220
 
 <b>real ac</b> : реальные значения напряжение сети и Resantы, давление или значения из Telegram
-<b>ac=</b><i>1-255</i> :  значение напряжения сети из Telegram
-<b>res=</b><i>1-255</i> : значение напряжения после Resanta из Telegram
-<b>water=</b><i>0.0-9.9</i> : значение давления воды из Telegram
+<b>.ac=</b><i>1-255</i> :  значение напряжения сети из Telegram
+<b>.res=</b><i>1-255</i> : значение напряжения после Resanta из Telegram
+<b>.water=</b><i>0.0-9.9</i> : значение давления воды из Telegram
 
 <i>page 1</i>
 )rawliteral",
 
 R"rawliteral(
-____________
 <b>laser sensor</b> : вкл/выкл лазерного датчика в емкости
 <b>tank base=</b><i>1-5000</i> : площадь основания емкости в (м)x1000 (ПИ x кв.радиуса емкости x1000)
 <b>tank hight=</b><i>1-3000</i> : высота емкости в мм
@@ -177,10 +172,10 @@ ____________
 };
 
 const char* telegramVirtualKeyboard =
-  "tank \t tank reset \t active \t deep water\n"
-  "options \t save \t zona0 \t apol on \t apol off\n"
-  "list \t skip \t go \t pause \t stop \t break\n"
+  "status \t options \t on \t shutdown \t stdby\n"
+  "active \t save \t tank \t tank reset \t deep control\n"
+  "info \t list \t zona0 \t /help \t /helppower\n"
+  "save \t skip \t go \t pause \t stop \t break\n"
   "pool on \t pool off \t skimmer on \t skimmer off\n"
-  ".deep block \t .garden block\n"
-  "ntp \t reboot \t memory \t balance\n"
-  "/start \t /help \t /help power";
+  ".deep block \t .garden block \t apol on \t apol off\n"
+  "memory \t balance \t ntp \t /start";
