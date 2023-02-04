@@ -59,6 +59,9 @@ struct AppValues
 
 class App
     {
+        protected:
+            constexpr static const uint16_t SOURCE_EVENT_PING_INTERVAL = 2000;
+
         private:
             TaskHandle_t xWifiPingBotHandle = NULL;
             TaskHandle_t xPingWebHandle = NULL;
@@ -328,8 +331,16 @@ class App
                 {
                     webServer->begin();
                     Serial.println("WebServer Started");
+
+                    uint32_t lastPingTime = millis() + SOURCE_EVENT_PING_INTERVAL;
                     while(state == PING_FAILED)
                         {
+                            if(lastPingTime < millis())
+                                {
+                                    webSourceEvents->send("", "ping", millis());
+                                    lastPingTime = millis() + SOURCE_EVENT_PING_INTERVAL;
+                                };
+
                             readBufferMessages();
                             sleepTickTime(100);
                         };
