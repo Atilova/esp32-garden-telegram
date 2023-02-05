@@ -1,7 +1,7 @@
 const smartChat = function() {
   const ESP_HOST = location.origin;
 
-  const TEXTAREA_MAN_ROWS_PORTRAIT = IS_MOBILE ? 6 : 10,
+  const TEXTAREA_MAX_ROWS_PORTRAIT = IS_MOBILE ? 6 : 10,
         TEXTAREA_MAX_ROWS_LANDSCAPE = 2,
         TEXT_KEYBOARD_OPEN_DURATION = 150,
         MAX_CHAT_HISTORY_MESSAGES = IS_MOBILE ? 30 : 50,
@@ -26,7 +26,6 @@ const smartChat = function() {
         $optionButton = document.querySelector('#chat-option'),
         $keyboardMarkupButtons = document.querySelectorAll('#keyboard-menu button'),
         $keyboardMarkup = document.querySelector('#keyboard-menu'),
-        $metaTheme = document.querySelector('meta[name="theme-color"]'),
         $activityStatus = document.querySelector('#activity-status');
 
   let isTextKeyboardOpened = false,
@@ -85,7 +84,7 @@ const smartChat = function() {
 
     $textarea.style.height = TEXTAREA_HEIGHT + 'px';
 
-    let maxRows = TEXTAREA_MAN_ROWS_PORTRAIT;
+    let maxRows = TEXTAREA_MAX_ROWS_PORTRAIT;
     const scroll = $textarea.scrollHeight,
         rows = getRowsCount(scroll);
 
