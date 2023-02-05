@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>Garden Chat</title>
+
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0 maximum-scale=1.0, minimum-scale=1.0, user-scalable=no" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="theme-color" content="#fafff5" />
+
+        <link rel="shortcut icon" href="static/favicon.png" type="image/x-icon" />
+        <link rel="apple-touch-icon" href="static/favicon.png" />
+
+        <link rel="stylesheet" href="static/styles.css" />
+        <link rel="stylesheet" href="static/fontawesome.css" />
+
+        <script src="static/mobile.js"></script>
+        <script src="static/swipe.js"></script>
+    </head>
+    <body>
+        <main class="chat-container">
+            <div id="chat-resize" class="chat-resize"></div>
+
+            <section id="chat-box" class="chat">
+                <header class="chat__header">
+                    <div id="activity-status" class="chat__avatar"></div>
+                    <span class="chat__name">Garden Management</span>
+                    <i id="clean-history-button" class="far fa-trash-alt chat__cleanup"></i>
+                </header>
+
+                <section id="messages-area" class="chat__body body-messages"></section>
+
+                <section class="chat__form">
+                    <div id="chat-footer" class="chat__area">
+                        <textarea id="chat-textarea" class="chat__textarea" placeholder="Write a message..."></textarea>
+                    </div>
+                    <div class="chat__control">
+                        <div id="chat-option" class="chat__current-option">
+                            <button id="toggle-keyboard-markup" class="chat__open-keyboard">
+                                <svg style="height: 25px; width: 25px" onClick = {this.swapMenu} fill="#000000" viewBox="0 0 32 32">
+                                    <path d = "M28.14,3.86A6.32,6.32,0,0,0,23.66,2H8.34A6.34,6.34,0,0,0,2,8.34V23.66A6.34,6.34,0,0,0,8.34,30H23.66A6.34,6.34,0,0,0,30,23.66V8.34A6.32,6.32,0,0,0,28.14,3.86ZM14.5,22.36a2,2,0,0,1-2,2H9.29a2,2,0,0,1-2-2v-3.2a2,2,0,0,1,2-2h3.2a2,2,0,0,1,2,2v3.2Zm0-9.51a2,2,0,0,1-2,2H9.29a2,2,0,0,1-2-2V9.64a2,2,0,0,1,2-2h3.2a2,2,0,0,1,2,2v3.2Zm10.21,9.51a2,2,0,0,1-2,2H19.5a2,2,0,0,1-2-2v-3.2a2,2,0,0,1,2-2h3.2a2,2,0,0,1,2,2v3.2Zm0-9.51a2,2,0,0,1-2,2H19.5a2,2,0,0,1-2-2V9.64a2,2,0,0,1,2-2h3.2a2,2,0,0,1,2,2v3.2Z" />
+                                </svg>
+                            </button>
+                            <button id="send-button" class="chat__send chat-send">
+                                <i class="fas fa-arrow-up"></i>
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="keyboard-menu" class="chat__keyboard chat-keyboard">
+                    <div class="chat-keyboard__row">
+                        <button>status</button>
+                        <button>options</button>
+                        <button>on</button>
+                        <div class="chat-keyboard__break-row_mobile"></div>
+                        <button>shutdown</button>
+                        <button>stdby</button>
+                    </div>
+                    <div class="chat-keyboard__row">
+                        <button>active</button>
+                        <button>save</button>
+                        <button>tank</button>
+                        <div class="chat-keyboard__break-row_mobile"></div>
+                        <button>tank reset</button>
+                        <button>deep control</button>
+                    </div>
+                    <div class="chat-keyboard__row">
+                        <button>info</button>
+                        <button>list</button>
+                        <button>zona0</button>
+                        <div class="chat-keyboard__break-row_mobile"></div>
+                        <button>/help</button>
+                        <button>/helppower</button>
+                    </div>
+                    <div class="chat-keyboard__row">
+                        <button>save</button>
+                        <button>skip</button>
+                        <button>go</button>
+                        <div class="chat-keyboard__break-row_mobile"></div>
+                        <button>pause</button>
+                        <button>stop</button>
+                        <button>break</button>
+                    </div>
+                    <div class="chat-keyboard__row">
+                        <button>pool on</button>
+                        <button>pool off</button>
+                        <div class="chat-keyboard__break-row_mobile"></div>
+                        <button>skimmer on</button>
+                        <button>skimmer off</button>
+                    </div>
+                    <div class="chat-keyboard__row">
+                        <button>.deep block</button>
+                        <button>.garden block</button>
+                        <div class="chat-keyboard__break-row_mobile"></div>
+                        <button>apol on</button>
+                        <button>apol off</button>
+                    </div>
+                    <div class="chat-keyboard__row">
+                        <button>memory</button>
+                        <button>balance</button>
+                    </div>
+                </section>
+            </section>
+        </main>
+        <script src="static/chat.js"></script>
+    </body>
+</html>
