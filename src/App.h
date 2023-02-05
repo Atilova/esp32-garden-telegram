@@ -12,6 +12,7 @@
 #include <ArduinoJson.h>
 #include "time.h"
 #include "Doc.h"
+#include "SPIFFS.h"
 
 #define repeat(n) for(int i = n; i--;)
 
@@ -305,6 +306,12 @@ class App
                         request->send(404, "text/html", "<script>location.replace(\"/\");</script>");
                     });
 
+                    webServer->on("/", HTTP_GET, [](AsyncWebServerRequest *request){
+                        request->send(SPIFFS, "/index.html", "", false);
+                    });
+
+                    webServer->serveStatic("/static/", SPIFFS, "/static/");
+
                     webSourceEvents = new AsyncEventSource("/updates");
                     webServer->addHandler(webSourceEvents);
                 };
@@ -448,6 +455,7 @@ class App
             App(AppConfig& data)
                 {
                     localConf = &data;
+                    SPIFFS.begin();
                     pinMode(localConf->ESP_LED_PIN, OUTPUT);
                     setupTelegram();
                     setupWebServer();
