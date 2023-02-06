@@ -43,6 +43,7 @@ struct AppConfig
         uint32_t WEB_SERVER_PORT;
         const char* LOCAL_TIMEZONE;
         uint8_t ESP_LED_PIN;  // LED ESP32 вывод - 2
+        HardwareSerial& MEGA_IO;
     };
 
 enum appState
@@ -113,7 +114,7 @@ class App
 
             void checkInternet()
                 {
-                    Serial2.println(checkState(CONNECTING_TO_TELEGRAM) ? "inet.ok" : "inet.no");
+                    localConf->MEGA_IO.println(checkState(CONNECTING_TO_TELEGRAM) ? "inet.ok" : "inet.no");
                 };
 
             void runNtpSynchronization()
@@ -127,8 +128,8 @@ class App
                     if(!getLocalTime(&datetime))
                         return addMessageToBuffer("NTP:Ошибка синхронизации времени");
 
-                    Serial2.printf("time=%02d:%02d:%02d\r\n", datetime.tm_hour, datetime.tm_min, datetime.tm_sec);
-                    Serial2.printf("day=%d\r\n", datetime.tm_wday);
+                    localConf->MEGA_IO.printf("time=%02d:%02d:%02d\r\n", datetime.tm_hour, datetime.tm_min, datetime.tm_sec);
+                    localConf->MEGA_IO.printf("day=%d\r\n", datetime.tm_wday);
                 };
 
           void getFreeHeapSize()
@@ -157,9 +158,9 @@ class App
 
                     for(;;)
                         {
-                            while(Serial2.available())
+                            while(_app->localConf->MEGA_IO.available())  // Это Serial2
                                 {
-                                    char nextCharacter = Serial2.read();
+                                    char nextCharacter = _app->localConf->MEGA_IO.read();
                                     if(nextCharacter == SKIP_LINE)
                                         continue;
 
@@ -278,12 +279,16 @@ class App
 
                     if(message == "reboot")
                         {
-                           bot->sendMessage("🛑 Перезагрузка ESP32, ожидайте...");
-                           sleepTickTime(1000);
-                           return ESP.restart();
+                           const char restartMessage[] = "🛑 Перезагрузка ESP32, ожидайте...";
+
+                            if(checkState(CONNECTING_TO_TELEGRAM))
+                                bot->sendMessage(restartMessage);   // Выводим в телеграм
+                            else
+                                webSourceEvents->send(restartMessage, "newMegaMessage", millis());  // Выводим в WEB
+                            ESP.restart();
                         };
 
-                    Serial2.println(message);  // Все остальное отдаем в мегу
+                    localConf->MEGA_IO.println(message);  // Все остальное отдаем в мегу
                 };
 
             void setupWebServer()
@@ -455,6 +460,7 @@ class App
             App(AppConfig& data)
                 {
                     localConf = &data;
+                    localConf->MEGA_IO.begin(115200);   // Это Serial2.begin(115200)
                     SPIFFS.begin();
                     pinMode(localConf->ESP_LED_PIN, OUTPUT);
                     setupTelegram();
