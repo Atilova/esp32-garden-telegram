@@ -172,10 +172,13 @@ R"rawliteral(
 };
 
 const char* telegramVirtualKeyboard =
-  "status \t options \t on \t shutdown \t stdby\n"
+  "status \t options \t on \t shutdown \t stdby \t /hide\n"
   "active \t save \t tank \t tank reset \t deep control\n"
   "info \t list \t zona0 \t /help \t /helppower\n"
   "save \t skip \t go \t pause \t stop \t break\n"
   "pool on \t pool off \t skimmer on \t skimmer off\n"
   ".deep block \t .garden block \t apol on \t apol off\n"
   "memory \t balance \t ntp \t /start";
+
+  const char* hideTelegramVirtualKeyboard =
+  "/start";
