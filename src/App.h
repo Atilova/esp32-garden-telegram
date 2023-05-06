@@ -16,14 +16,15 @@
 
 #define repeat(n) for(int i = n; i--;)
 
-struct tcp_pcb;  // Закрытие открытых неиспользуемых портов tcp.
-                 // Это делать не ранее чем через 2 сек, после выключения web сервера
+// Закрытие открытых неиспользуемых соединений tcp.
+// Это делать не ранее чем через 2 секунд, после выключения web сервера
+struct tcp_pcb;
 extern struct tcp_pcb* tcp_tw_pcbs;
 extern "C" void tcp_abort(struct tcp_pcb* pcb);
 
 void tcpCleanup(void)
     {
-        while(tcp_tw_pcbs)
+        while(tcp_tw_pcbs != NULL)
             tcp_abort(tcp_tw_pcbs);
     };
 
@@ -42,43 +43,55 @@ struct AppConfig
         uint8_t PING_HOSTS_LENGTH;
         uint32_t WEB_SERVER_PORT;
         const char* LOCAL_TIMEZONE;
-        uint8_t ESP_LED_PIN;  // LED ESP32 вывод - 2
+        uint8_t ESP_LED_PIN;
         HardwareSerial& MEGA_IO;
     };
 
 enum appState
     {
         CONNECTING_TO_WIFI,
-        MAKE_PING,
-        CONNECTING_TO_TELEGRAM,
-        PING_FAILED
+        INITIAL_PING,
+        RUNNING_TELEGRAM,
+        RUNNING_WEB_SERVER,
+        DEVICE_REBOOT
+    };
+
+enum appSourceType
+    {
+        TELEGRAM_IO,
+        WEB_SERVER_IO
     };
 
 struct AppValues
     {
         char* tzEnvPointer = nullptr;
+        boolean isInternetUp = false;
     };
 
 class App
     {
         protected:
             constexpr static const uint16_t SOURCE_EVENT_PING_INTERVAL = 2000;
+            constexpr static const char SYSTEM_MESSAGE_EVENT_TYPE[] = "newMegaMessage",
+                                        USER_MESSAGE_EVENT_TYPE[] = "newUserMessage";
 
         private:
-            TaskHandle_t xWifiPingBotHandle = NULL;
-            TaskHandle_t xPingWebHandle = NULL;
+            TaskHandle_t xWifiTelegramAndWebHandle = NULL;
+            TaskHandle_t xInternetPingHandle = NULL;
             TaskHandle_t xSerialMegaHandle = NULL;
 
             AppConfig* localConf;
-            appState state = CONNECTING_TO_WIFI;
+            AppValues values;
             CircularBuffer<const char*, 15> receiveBufferFromMega;  // Will store pointers to char arrays on heap
+
+            appState state = CONNECTING_TO_WIFI;
+            appSourceType mainIO = TELEGRAM_IO;
 
             FastBot* bot;
 
             AsyncWebServer* webServer;
             AsyncEventSource *webSourceEvents;
 
-            AppValues values;
             StaticJsonDocument<500> jsonBuffer;
 
             void addMessageToBuffer(const String& buffer)
@@ -99,26 +112,38 @@ class App
                     const char* message = receiveBufferFromMega.shift();
 
                     if(!strcmp(message, "2560ask?:inet"))
-                        return checkInternet();  // Возвратим меге inet.ok, если состояние CONNECTING_TO_TELEGRAM, иначе inet.no
-
-                    if(!strcmp(message, "2560ask?:ntp"))  // Синхронизация времени и дня недели для меги
-                        return runNtpSynchronization();
-
-                    if(checkState(CONNECTING_TO_TELEGRAM))  // Все остальное выводим в телеграм или в web
+                        pushInternetStatusToMega();
+                    else if(!strcmp(message, "2560ask?:ntp"))
+                        runNtpSynchronization();
+                    else if(checkState(RUNNING_TELEGRAM))
                         bot->sendMessage(message);
                     else
-                        webSourceEvents->send(message, "newMegaMessage", millis());
+                        webSourceEvents->send(message, SYSTEM_MESSAGE_EVENT_TYPE, millis());
 
-                    delete [] message;  // Cleanup heap, освобождаем пямять на
+                    delete [] message;  // Cleanup heap, освобождаем пямять
                 };
 
-            void checkInternet()
+            boolean updateInternetStatus(boolean updateAnyway=false)
                 {
-                    localConf->MEGA_IO.println(checkState(CONNECTING_TO_TELEGRAM) ? "inet.ok" : "inet.no");
+                    boolean result = pingWifi();
+                    if(values.isInternetUp != result || updateAnyway)
+                        {
+                            values.isInternetUp = result;
+                            pushInternetStatusToMega();
+                        };
+                    return values.isInternetUp;
+                };
+
+            void pushInternetStatusToMega()
+                {
+                    localConf->MEGA_IO.println(values.isInternetUp ? "inet.ok" : "inet.no");
                 };
 
             void runNtpSynchronization()
                 {
+                    if(!values.isInternetUp)
+                        return addMessageToBuffer("Couldn't obtain datetime, internet link down");
+
                     tm datetime;
 
                     configTime(0, 0, "pool.ntp.org");  // Забираем время из инета
@@ -132,7 +157,7 @@ class App
                     localConf->MEGA_IO.printf("day=%d\r\n", datetime.tm_wday);
                 };
 
-          void getFreeHeapSize()
+            void getFreeHeapSize()
                 {
                     char buffer[64];
                     sprintf(buffer, "ESP heap free size = %d", ESP.getFreeHeap());
@@ -142,6 +167,11 @@ class App
             boolean checkState(appState stateToCheck)
                 {
                    return state == stateToCheck;  // Если state равен stateToCheck - вернем true, иначе false
+                };
+
+            boolean checkIO(appSourceType ioToCheck)
+                {
+                    return mainIO == ioToCheck;
                 };
 
             void sleepTickTime(uint16_t delayMs)
@@ -175,7 +205,7 @@ class App
                         };
                 };
 
-            static void primaryStateLoop(void* parameter)  // Основной цикл проверки wifi, ping
+            static void primaryStateLoop(void* parameter)
                 {
                     App* _app = static_cast<App*>(parameter);
                     for(;;)
@@ -185,32 +215,35 @@ class App
                                     case CONNECTING_TO_WIFI:
                                         {
                                             _app->connectToWifi();
-                                            _app->state = MAKE_PING;
+                                            _app->state = INITIAL_PING;
                                             break;
                                         }
-                                    case MAKE_PING:
+                                    case INITIAL_PING:
                                         {
-                                            _app->state = _app->pingWifi()  // Одноразовый пинг для подкл. к телеграм
-                                                     ? CONNECTING_TO_TELEGRAM
-                                                     : WiFi.isConnected()
-                                                        ? PING_FAILED
-                                                        : CONNECTING_TO_WIFI;
-
+                                            Serial.println("INITIAL PING");
+                                            _app->updateInternetStatus(true);
+                                            _app->state = _app->checkIO(TELEGRAM_IO)
+                                                ? _app->values.isInternetUp
+                                                    ? RUNNING_TELEGRAM
+                                                    : WiFi.isConnected()
+                                                        ? RUNNING_WEB_SERVER
+                                                        : CONNECTING_TO_WIFI
+                                                : RUNNING_WEB_SERVER;
                                             break;
                                         }
-                                    case CONNECTING_TO_TELEGRAM:
+                                    case RUNNING_TELEGRAM:
                                         {
                                             _app->updateTelegram();
                                             break;
                                         }
-                                    case PING_FAILED:
+                                    case RUNNING_WEB_SERVER:
                                         {
-                                            while(!_app->pingWifi() && WiFi.isConnected())
-                                                _app->sleepTickTime(4000);  // Поставить 30сек! Задержка между пинг, когда он не прошел
-
-                                            _app->state = WiFi.isConnected()
-                                                ? CONNECTING_TO_TELEGRAM
-                                                : CONNECTING_TO_WIFI;
+                                            _app->startWebServer();
+                                            break;
+                                        }
+                                    case DEVICE_REBOOT:
+                                        {
+                                            ESP.restart();
                                             break;
                                         }
                                     default:
@@ -220,7 +253,6 @@ class App
                                         };
                                 };
                         };
-
                 };
 
             static void secondaryStateLoop(void* parameter)
@@ -230,30 +262,51 @@ class App
                         {
                             switch(_app->state)
                                 {
-                                    case CONNECTING_TO_TELEGRAM:
+                                    case RUNNING_TELEGRAM:
                                         {
-                                            _app->checkInternet(); // Передаем inet.ok в мегу
-                                            while(_app->pingWifi() && WiFi.isConnected())  // Есть подключение к телеграм и будем постоянно проверять Ping
+                                            while(_app->checkIO(TELEGRAM_IO) && _app->updateInternetStatus() && WiFi.isConnected())
+                                                _app->sleepTickTime(5000);
+
+                                            _app->state = _app->checkIO(TELEGRAM_IO)
+                                                ? WiFi.isConnected()
+                                                    ? RUNNING_WEB_SERVER
+                                                    : CONNECTING_TO_WIFI
+                                                : RUNNING_WEB_SERVER;
+
+                                            break;
+                                        }
+                                    case RUNNING_WEB_SERVER:
+                                        {
+                                            if(_app->checkIO(TELEGRAM_IO))
                                                 {
-                                                    Serial.println("Ping. OK..");
-                                                    _app->sleepTickTime(10000);  // Задержка между пинг, когда он прошел
+                                                    while(_app->checkIO(TELEGRAM_IO) && !_app->updateInternetStatus() && WiFi.isConnected())
+                                                        _app->sleepTickTime(4000);
+
+
+                                                    _app->state = WiFi.isConnected()
+                                                        ? _app->checkIO(TELEGRAM_IO)
+                                                            ? RUNNING_TELEGRAM
+                                                            : RUNNING_WEB_SERVER
+                                                        : CONNECTING_TO_WIFI;
+
+                                                    break;
+                                                };
+
+                                            while(_app->checkIO(WEB_SERVER_IO) && WiFi.isConnected())
+                                                {
+                                                    _app->updateInternetStatus();
+                                                    _app->sleepTickTime(5000);
                                                 };
 
                                             _app->state = WiFi.isConnected()
-                                                ? PING_FAILED
+                                                ? INITIAL_PING
                                                 : CONNECTING_TO_WIFI;
 
                                             break;
                                         }
-                                    case PING_FAILED:  // Во время работы телеграма отпал инет, поднимаем Webserver и ждем пинг ок
-                                        {
-                                            _app->checkInternet();  // Передаем inet.no в мегу
-                                            _app->startWebServer();
-                                            break;
-                                        }
                                     default:
                                         {
-                                            _app->sleepTickTime(500);  // Категорически не убирать задержку!!!! не будет работать!!!
+                                            _app->sleepTickTime(500);  //! DO NOT REMOVE, ESP CRASHES OTHERWISE
                                             break;
                                         };
                                 };
@@ -268,25 +321,20 @@ class App
 
             void handleAnyMessageFromTelegramOrWeb(String& message)
                 {
-                    if(message == "/help")
+                    if(message.equals("/help"))
                         return sendHelpPages(0, 3);
 
-                    if(message == "/helppower")
+                    if(message.equals("/helppower"))
                         return sendHelpPages(4, 5);
 
-                    if(message == "memory")
+                    if(message.equals("memory"))
                         return getFreeHeapSize();
 
-                    if(message == "reboot")
-                        {
-                           const char restartMessage[] = "🛑 Перезагрузка ESP32, ожидайте...";
+                    if(message.equals("ntp"))
+                        return runNtpSynchronization();
 
-                            if(checkState(CONNECTING_TO_TELEGRAM))
-                                bot->sendMessage(restartMessage);   // Выводим в телеграм
-                            else
-                                webSourceEvents->send(restartMessage, "newMegaMessage", millis());  // Выводим в WEB
-                            ESP.restart();
-                        };
+                    if(message.equals("reboot"))
+                        return (void) (state = DEVICE_REBOOT);
 
                     localConf->MEGA_IO.println(message);  // Все остальное отдаем в мегу
                 };
@@ -319,6 +367,10 @@ class App
 
                     webSourceEvents = new AsyncEventSource("/updates");
                     webServer->addHandler(webSourceEvents);
+
+                    webSourceEvents->onConnect([](AsyncEventSourceClient *client) {
+                        client->send(systemWebServerUpMessage, SYSTEM_MESSAGE_EVENT_TYPE, millis());
+                    });
                 };
 
             void webServerHandleBodyRequest(AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t index, size_t total)
@@ -332,10 +384,28 @@ class App
 
                     char buffer[500];
                     serializeJson(jsonBuffer, buffer);  // strcpy(buffer, (const char*)data);
-                    String msg = jsonBuffer["message"].as<String>();
+                    String message = jsonBuffer["message"].as<String>();
 
-                    webSourceEvents->send(buffer, "newUserMessage", millis());
-                    handleAnyMessageFromTelegramOrWeb(msg);
+                    webSourceEvents->send(buffer, USER_MESSAGE_EVENT_TYPE, millis());
+
+                    if(message.equals("/stopweb"))
+                        {
+                            mainIO = TELEGRAM_IO;
+                            webSourceEvents->send(
+                                values.isInternetUp
+                                    ? systemWebServerDownMessage
+                                    : systemWebServerUnableToEndMessage,
+                                SYSTEM_MESSAGE_EVENT_TYPE,
+                                millis()
+                            );
+                        }
+                    else if(message.equals("/freezeweb"))
+                        {
+                            mainIO = WEB_SERVER_IO;
+                            webSourceEvents->send(systemRemainWebServerMessage, SYSTEM_MESSAGE_EVENT_TYPE, millis());
+                        }
+                    else
+                        handleAnyMessageFromTelegramOrWeb(message);
                     return request->send(200);
                 };
 
@@ -345,7 +415,7 @@ class App
                     Serial.println("WebServer Started");
 
                     uint32_t lastPingTime = millis() + SOURCE_EVENT_PING_INTERVAL;
-                    while(state == PING_FAILED)
+                    while(checkState(RUNNING_WEB_SERVER))
                         {
                             if(lastPingTime < millis())
                                 {
@@ -356,17 +426,24 @@ class App
                             readBufferMessages();
                             sleepTickTime(100);
                         };
+
+                    if(checkState(DEVICE_REBOOT))
+                        webSourceEvents->send(systemDeviceRebootMessage, SYSTEM_MESSAGE_EVENT_TYPE, millis());
+                    else if(checkState(DEVICE_REBOOT))
+                        webSourceEvents->send(systemEndWebServerStartTelegramMessage, SYSTEM_MESSAGE_EVENT_TYPE, millis());
+
                     webSourceEvents->close();
                     webServer->end();
-                    sleepTickTime(5000);  // Do not remove, wait for gracefull server end, before tcpCleanup()
+                    sleepTickTime(7000);  //! Do not remove, wait for graceful server end, before tcpCleanup()
                     tcpCleanup();
+                    Serial.println("CleanUP finished");
                 };
 
             void resetWifi()
                 {
-                    WiFi.disconnect();  // Обрываем WIFI соединения
-                    WiFi.softAPdisconnect();  // Отключаем точку доступа, т.е режим роутера
-                    WiFi.mode(WIFI_OFF);  // Отключаем WIFI
+                    WiFi.disconnect();
+                    WiFi.softAPdisconnect();
+                    WiFi.mode(WIFI_OFF);
                     sleepTickTime(500);
                 };
 
@@ -412,25 +489,30 @@ class App
                     Serial.println("Connected...");
                     bot->skipUpdates();  // Пропускаем старые сообщения
                     receiveBufferFromMega.clear();  // Очищаем кольцевой буфер
-                    bot->sendMessage("🟢 Esp online");
-                    while(state == CONNECTING_TO_TELEGRAM)
+                    bot->sendMessage(systemTelegramUpMessage);
+                    while(checkState(RUNNING_TELEGRAM))
                         {
                             bot->tick();
-                            readBufferMessages(); //если что-то есть в кольцевом буфере, выводим в телеграм
+                            readBufferMessages();  // Если что-то есть в кольцевом буфере, выводим в телеграм
                             sleepTickTime(30);
                         };
+
+                    if(checkState(DEVICE_REBOOT))
+                        bot->sendMessage(systemDeviceRebootMessage);
                 };
 
             void receiveNewTelegramMessage(FB_msg& message)
                 {
                     if(message.text == "/start")
-                        {
-                            bot->showMenuText("Keyboard loaded", telegramVirtualKeyboard);
-                            return;
-                        };
+                        return (void) bot->showMenuText("Keyboard loaded", telegramVirtualKeyboard);
 
-                    if(message.text == "ntp")
-                        return runNtpSynchronization();
+                    if(message.text.equals("/startweb"))
+                        return (void) ({
+                            char buffer[30];
+                            sprintf(buffer, "http://%s", WiFi.localIP().toString());
+                            bot->inlineMenuCallback(systemTelegramDownMessage, "Open App", buffer);
+                            mainIO = WEB_SERVER_IO;
+                        });
 
                     handleAnyMessageFromTelegramOrWeb(message.text);  // Получаем сообщение и телеграма
                 };
@@ -473,13 +555,17 @@ class App
                     delete bot;
                     delete webServer;
                     delete webSourceEvents;
+                    delete values.tzEnvPointer;
+
+                    while(!receiveBufferFromMega.isEmpty())
+                        delete [] receiveBufferFromMega.pop();
                 };
 
             void run()
                 {
                     xTaskCreate(readSerialMega, "readSerialMega", 8000, static_cast<void*>(this), 1, &xSerialMegaHandle);
-                    xTaskCreate(primaryStateLoop, "primaryStateLoop", 8000, static_cast<void*>(this), 1, &xWifiPingBotHandle);
-                    xTaskCreate(secondaryStateLoop, "secondaryStateLoop", 16000, static_cast<void*>(this), 1, &xPingWebHandle);
+                    xTaskCreate(primaryStateLoop, "primaryStateLoop", 12000, static_cast<void*>(this), 1, &xWifiTelegramAndWebHandle);
+                    xTaskCreate(secondaryStateLoop, "secondaryStateLoop", 16000, static_cast<void*>(this), 1, &xInternetPingHandle);
                 };
     };
 #endif

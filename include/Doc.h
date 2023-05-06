@@ -1,3 +1,6 @@
+#ifndef _DOC_H_
+#define _DOC_H_
+
 const char* helpCommand[] = {
 R"rawliteral(
 <i><u>КОМАНДЫ СИСТЕМЫ ПОЛИВА</u></i>
@@ -179,3 +182,13 @@ const char* telegramVirtualKeyboard =
   "pool on \t pool off \t skimmer on \t skimmer off\n"
   ".deep block \t .garden block \t apol on \t apol off\n"
   "memory \t balance \t ntp \t /start";
+
+constexpr const char systemWebServerUpMessage[] = "🟢 WebServer is ready to use",
+                     systemWebServerDownMessage[] = "🔴 Waiting for WebServer graceful end... Please wait",
+                     systemEndWebServerStartTelegramMessage[] = "❗️ WebServer shutdown in progress. Switching to Telegram for communication",
+                     systemWebServerUnableToEndMessage[] = "⚠️ Once the internet connection is restored, you'll be transitioned to Telegram",
+                     systemRemainWebServerMessage[] = "⚠️ WebServer remain operational regardless of whether the internet connection is available or not",
+                     systemDeviceRebootMessage[] = "❗️ System reboot initiated. Please wait while the device restarts...",
+                     systemTelegramUpMessage[] = "🟢 Telegram connection is now available",
+                     systemTelegramDownMessage[] = "🔴 Switching from Telegram to the web server for messaging... Please wait";
+#endif
