@@ -1,7 +1,6 @@
 #include <Arduino.h>
 #include "App.h"
 #include "Config.h"
-#include "Secret.h"
 
 // Изменено в lib/FastBot/FastBot.h
 // Original: void(*_callback)(FB_msg& msg)
