@@ -51,62 +51,62 @@ class App
 
             bool isState(State expected)
                 {
-                   return state == expected;
+                    return state == expected;
                 }
 
             static void primaryStateLoop(void* parameter)
-				{
-					App* _app = static_cast<App*>(parameter);
-					for(;;)
-						{
-							switch(_app->state)
-								{
-									case State::WAKE_WIFI:
-										{
-											_app->wakeWifi();
-											_app->state = State::INITIATE_MQTT_CONNECTION;
-											break;
-										}
-									case State::INITIATE_MQTT_CONNECTION:
-										{
-											_app->state = _app->initiateMqttConnection()
-												? State::CONSUME_MQTT
-												: WiFi.isConnected()
-													? State::CONSUME_WEB_SERVER
-													: State::WAKE_WIFI;
+                {
+                    App* _app = static_cast<App*>(parameter);
+                    for(;;)
+                        {
+                            switch(_app->state)
+                                {
+                                    case State::WAKE_WIFI:
+                                        {
+                                            _app->wakeWifi();
+                                            _app->state = State::INITIATE_MQTT_CONNECTION;
+                                            break;
+                                        }
+                                    case State::INITIATE_MQTT_CONNECTION:
+                                        {
+                                            _app->state = _app->initiateMqttConnection()
+                                                ? State::CONSUME_MQTT
+                                                : WiFi.isConnected()
+                                                    ? State::CONSUME_WEB_SERVER
+                                                    : State::WAKE_WIFI;
 
-											break;
-										}
-									case State::CONSUME_MQTT:
-										{
-											_app->consumeMqtt();
-											_app->state = State::INITIATE_MQTT_CONNECTION;
+                                            break;
+                                        }
+                                    case State::CONSUME_MQTT:
+                                        {
+                                            _app->consumeMqtt();
+                                            _app->state = State::INITIATE_MQTT_CONNECTION;
 
-											break;
-										}
-									case State::CONSUME_WEB_SERVER:
-										{
-											while (WiFi.isConnected() && !_app->initiateMqttConnection()) {
-												wait(4000);
-											}
+                                            break;
+                                        }
+                                    case State::CONSUME_WEB_SERVER:
+                                        {
+                                            while (WiFi.isConnected() && !_app->initiateMqttConnection()) {
+                                                wait(4000);
+                                            }
 
-											_app->state = WiFi.isConnected()
-												? State::CONSUME_MQTT
-												: State::WAKE_WIFI;
+                                            _app->state = WiFi.isConnected()
+                                                ? State::CONSUME_MQTT
+                                                : State::WAKE_WIFI;
 
-											break;
-										}
-									default:
-										{
-											wait(500); // Prevents kernel prohibition.
-											break;
-										}
+                                            break;
+                                        }
+                                    default:
+                                        {
+                                            wait(500); // Prevents kernel prohibition.
+                                            break;
+                                        }
 
-								}
-						}
-				}
+                                }
+                        }
+                }
 
-			static void secondaryStateLoop(void* parameter)
+            static void secondaryStateLoop(void* parameter)
                 {
                     App* _app = static_cast<App*>(parameter);
                     for(;;)
@@ -311,7 +311,7 @@ class App
 
             void onMqttInboxMessage(char* topic, byte* payload, uint8_t length)
                 {
-					std::cout << "Inbox: " << topic << std::endl;
+                    std::cout << "Inbox: " << topic << std::endl;
                 }
 
             void setupMqttClient()
@@ -331,29 +331,24 @@ class App
 
             bool initiateMqttConnection()
                 {
-					bool pined = Ping.ping(localConf->MQTT_HOST, 3);
-
-                    bool connectivity = pined && mqttClient.connect(
-						localConf->MQTT_CLIENT_ID,
-						localConf->MQTT_USERNAME,
-						localConf->MQTT_PASSWORD
-					);
-
-                    std::cout << "TRYING - Ping " << pined << " Connection: " << connectivity << " | " << std::endl;
-                    return pined && connectivity;
+                    return Ping.ping(localConf->MQTT_HOST, 3) && mqttClient.connect(
+                        localConf->MQTT_CLIENT_ID,
+                        localConf->MQTT_USERNAME,
+                        localConf->MQTT_PASSWORD
+                    );
                 }
 
-			void consumeMqtt()
-				{
-					std::cout << "Mqtt connected." << std::endl;
-					exchangeBuffer.clear();
-					mqttClient.subscribe(localConf->MQTT_RECEIVE_TOPIC);
+            void consumeMqtt()
+                {
+                    std::cout << "Mqtt connected." << std::endl;
+                    exchangeBuffer.clear();
+                    mqttClient.subscribe(localConf->MQTT_RECEIVE_TOPIC);
 
-					while(isState(State::CONSUME_MQTT) && mqttClient.loop()) {
-						processBufferMessage();
-						wait(100);
-					}
-				}
+                    while(isState(State::CONSUME_MQTT) && mqttClient.loop()) {
+                        processBufferMessage();
+                        wait(100);
+                    }
+                }
 
             /**
              * WebServer specific code.
@@ -500,24 +495,24 @@ class App
                     setupWebServer();
                 }
 
-			~App()
+            ~App()
                 {
                     delete webServer;
                     delete webSourceEvents;
 
-					while(!exchangeBuffer.isEmpty())
-						{
-							const char* unhandled = exchangeBuffer.pop();
-							delete [] unhandled;
-						}
+                    while(!exchangeBuffer.isEmpty())
+                        {
+                            const char* unhandled = exchangeBuffer.pop();
+                            delete [] unhandled;
+                        }
                 }
 
-			void setup()
-				{
-					SPIFFS.begin();
-					localConf->MEGA_IO.begin(115200); // Это Serial2.begin(115200).
-					pinMode(localConf->ESP_LED_PIN, OUTPUT);
-				}
+            void setup()
+                {
+                    SPIFFS.begin();
+                    localConf->MEGA_IO.begin(115200); // Это Serial2.begin(115200).
+                    pinMode(localConf->ESP_LED_PIN, OUTPUT);
+                }
 
             void run()
                 {
