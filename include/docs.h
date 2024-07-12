@@ -1,3 +1,5 @@
+#pragma once
+
 const char* helpCommand[] = {
 R"rawliteral(
 <i><u>КОМАНДЫ СИСТЕМЫ ПОЛИВА</u></i>
