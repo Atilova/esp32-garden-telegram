@@ -1,5 +1,4 @@
-#ifndef _APP_CONFIG_H_
-#define _APP_CONFIG_H_
+#pragma once
 
 #include <IPAddress.h>
 
@@ -34,5 +33,3 @@ struct AppConfig
 
         HardwareSerial& MEGA_IO;
     };
-
-#endif

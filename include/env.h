@@ -1,5 +1,4 @@
-#ifndef _ENV_H_
-#define _ENV_H_
+#pragma once
 
 #include <stdio.h>
 #include <IPAddress.h>
@@ -19,5 +18,3 @@ IPAddress ipAddressFromString(const char* address) {
     ip.fromString(address);
     return ip;
 }
-
-#endif

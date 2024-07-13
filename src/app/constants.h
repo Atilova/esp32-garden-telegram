@@ -15,10 +15,11 @@ namespace AppConstants
                 constexpr char PING_MESSAGE[] = "ping";
                 constexpr char USER_MESSAGE[] = "newUserMessage";
                 constexpr char MEGA_MESSAGE[] = "newMegaMessage";
-            }   
+            }
 
         namespace UserMessages
             {
+                constexpr char ESP_ONLINE[] = "🟢 Esp online";
                 constexpr char NTP_SYNC_FAIL[] = "NTP: Ошибка синхронизации времени";
                 constexpr char ESP_REBOOT[] = "🛑 Перезагрузка ESP32, ожидайте...";
             }

@@ -1,5 +1,4 @@
-#ifndef _CONFIG_H_
-#define _CONFIG_H_
+#pragma once
 
 #include <IPAddress.h>
 
@@ -44,5 +43,3 @@ AppConfig conf {
 
     .MEGA_IO = Serial2
 };
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef _APP_H_
-#define _APP_H_
+#pragma once
 
 #include <stdio.h>
 #include <iostream>
@@ -22,7 +21,6 @@
 #include "constants.h"
 
 using namespace AppConstants;
-
 
 class App
     {
@@ -157,7 +155,19 @@ class App
 
             static void updateInternetStatus(void* parameter)
                 {
+                    App* _app = static_cast<App*>(parameter);
 
+                    _app->syncMEGAInternetAccess();
+                    for(;;)
+                        {
+                            const bool hasInternetAccess = WiFi.isConnected() && _app->determineInternetAccess();
+                            if(_app->values.hasInternetAccess != hasInternetAccess) {
+                                _app->values.hasInternetAccess = hasInternetAccess;
+                                _app->syncMEGAInternetAccess();
+                            }
+
+                            wait(7000);
+                        }
                 }
 
             /**
@@ -170,9 +180,9 @@ class App
                         return;
                     }
 
-                    char *heapBuffer = new char[buffer.length() + 1]; // Динамическое выделение памяти на heap.
-                    strcpy(heapBuffer, buffer.c_str()); // Записываем данные в буфер.
-                    exchangeBuffer.push(heapBuffer); // Добавляем указатель в буфер на созданный массив.
+                    auto heapBuffer = std::make_unique<char[]>(buffer.length() + 1); // Динамическое выделение памяти на heap.
+                    strcpy(heapBuffer.get(), buffer.c_str()); // Записываем данные в буфер.
+                    exchangeBuffer.push(heapBuffer.release()); // Добавляем указатель в буфер на созданный массив.
                 };
 
             void processBufferMessage()
@@ -195,7 +205,7 @@ class App
                             deliverUser(message); // Все остальное выводим в телеграм или в web.
                         }
 
-                    delete [] message; // Cleanup heap, освобождаем память.
+                    delete[] message; // Cleanup heap, освобождаем память.
                 };
 
             /**
@@ -237,7 +247,7 @@ class App
                     Serial.println("WiFi connected.");
                 }
 
-            bool hasInternetAccess()
+            bool determineInternetAccess()
                 {
                     for(uint8_t index=0; index < localConf->PING_HOSTS_LENGTH; index++)
                         {
@@ -276,6 +286,7 @@ class App
 
             void syncMEGAInternetAccess()
                 {
+                    std::cout << "syncMEGAInternetAccess: " << values.hasInternetAccess << std::endl;
                     deliverMEGA(values.hasInternetAccess
                         ? MegaCodes::INET_OK
                         : MegaCodes::INET_NO
@@ -311,7 +322,12 @@ class App
 
             void onMqttInboxMessage(char* topic, byte* payload, uint8_t length)
                 {
-                    std::cout << "Inbox: " << topic << std::endl;
+                    char buffer[length + 1];
+                    strncpy(buffer, reinterpret_cast<char*>(payload), length);
+                    buffer[length] = '\0';
+
+                    std::cout << "Inbox1: " << topic << " | -> " << buffer << std::endl;
+                    handleUserMessage(buffer);
                 }
 
             void setupMqttClient()
@@ -320,6 +336,7 @@ class App
                     mqttClient.setServer(localConf->MQTT_HOST, localConf->MQTT_PORT);
                     mqttClient.setKeepAlive(localConf->MQTT_KEEP_ALIVE);
                     mqttClient.setSocketTimeout(localConf->MQTT_TIMEOUT);
+                    mqttClient.setBufferSize(2048);
                     mqttClient.setCallback(std::bind(
                         &App::onMqttInboxMessage,
                         this,
@@ -341,13 +358,17 @@ class App
             void consumeMqtt()
                 {
                     std::cout << "Mqtt connected." << std::endl;
+                    deliverUser(UserMessages::ESP_ONLINE);
+
                     exchangeBuffer.clear();
                     mqttClient.subscribe(localConf->MQTT_RECEIVE_TOPIC);
 
                     while(isState(State::CONSUME_MQTT) && mqttClient.loop()) {
                         processBufferMessage();
-                        wait(100);
+                        wait(150);
                     }
+
+                    std::cout << "Mqtt failed." << std::endl;
                 }
 
             /**
@@ -397,7 +418,7 @@ class App
 
                     char buffer[500];
                     serializeJson(jsonBuffer, buffer); // strcpy(buffer, (const char*)data);
-                    String message = jsonBuffer["message"].as<String>();
+                    const char* message = jsonBuffer["message"].as<const char*>();
 
                     webSourceEvents->send(buffer, WebServerEvents::USER_MESSAGE, millis());
                     handleUserMessage(message);
@@ -426,6 +447,7 @@ class App
                     webServer->end();
                     wait(5000); // Do not remove, wait for graceful server end, before tcpCleanup().
                     tcpCleanup();
+                    Serial.println("WebServer stopped.");
                 }
 
             /**
@@ -435,11 +457,12 @@ class App
             void deliverUser(const char* message)
                 {
                     if(isState(State::CONSUME_WEB_SERVER)) {
-                        std::cout << "SEND WEB" << std::endl;
                         return webSourceEvents->send(message, WebServerEvents::MEGA_MESSAGE, millis());
                     }
 
-                    mqttClient.publish(localConf->MQTT_PUBLISH_TOPIC, message);
+                    mqttClient.beginPublish(localConf->MQTT_PUBLISH_TOPIC, strlen(message), 0);
+                    mqttClient.print(message);
+                    mqttClient.endPublish();
                 }
 
             void sendHelpPages(uint8_t startIndex, uint8_t endIndex)
@@ -456,28 +479,28 @@ class App
                     addBufferMessage(buffer);
                 }
 
-            void handleUserMessage(String& message)
+            void handleUserMessage(const char* message)
                 {
-                    if(message == UserCommands::HELP) {
+                    if(!strcmp(message, UserCommands::HELP)) {
                         return sendHelpPages(0, 3);
                     }
 
-                    if(message == UserCommands::HELP_POWER) {
+                    if(!strcmp(message, UserCommands::HELP_POWER)) {
                         return sendHelpPages(4, 5);
                     }
 
-                    if(message == UserCommands::MEMORY) {
+                    if(!strcmp(message, UserCommands::MEMORY)) {
                         return sendESPFreeHeap();
                     }
 
-                    if(message == UserCommands::REBOOT)
+                    if(!strcmp(message, UserCommands::REBOOT))
                         {
                             deliverUser(UserMessages::ESP_REBOOT);
                             wait(1000);
                             ESP.restart();
                         };
 
-                    deliverMEGA(message.c_str());
+                    deliverMEGA(message);
                 };
 
 
@@ -503,7 +526,7 @@ class App
                     while(!exchangeBuffer.isEmpty())
                         {
                             const char* unhandled = exchangeBuffer.pop();
-                            delete [] unhandled;
+                            delete[] unhandled;
                         }
                 }
 
@@ -516,13 +539,9 @@ class App
 
             void run()
                 {
-                    std::cout << "TEST: " << localConf->MQTT_HOST << " | " << localConf->MQTT_RECEIVE_TOPIC << std::endl;
-
-                    xTaskCreate(primaryStateLoop, "primaryStateLoop", 8000, static_cast<void*>(this), 1, &xMqttHandle);
-                    xTaskCreate(secondaryStateLoop, "secondaryStateLoop", 16000, static_cast<void*>(this), 1, &xWebServerHandle);
-                    // xTaskCreate(updateInternetStatus, "updateInternetStatus", 8000, static_cast<void*>(this), 1, &xInternetHandle);
+                    xTaskCreate(primaryStateLoop, "primaryStateLoop", 10000, static_cast<void*>(this), 1, &xMqttHandle);
+                    xTaskCreate(secondaryStateLoop, "secondaryStateLoop", 20000, static_cast<void*>(this), 1, &xWebServerHandle);
+                    xTaskCreate(updateInternetStatus, "updateInternetStatus", 4000, static_cast<void*>(this), 1, &xInternetHandle);
                     xTaskCreate(readSerialMEGA, "readSerialMEGA", 8000, static_cast<void*>(this), 1, &xSerialMegaHandle);
                 }
     };
-
-#endif
