@@ -1,5 +1,10 @@
 {
+  "explorer.decorations.colors": false,
   "files.associations": {
-    "functional": "cpp"
-  }
+    "functional": "cpp",
+    "*.tpp": "cpp"
+  },
+  "cSpell.words": [
+    "incapsulation"
+  ]
 }

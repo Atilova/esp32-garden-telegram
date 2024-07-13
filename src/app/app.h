@@ -336,7 +336,6 @@ class App
                     mqttClient.setServer(localConf->MQTT_HOST, localConf->MQTT_PORT);
                     mqttClient.setKeepAlive(localConf->MQTT_KEEP_ALIVE);
                     mqttClient.setSocketTimeout(localConf->MQTT_TIMEOUT);
-                    mqttClient.setBufferSize(2048);
                     mqttClient.setCallback(std::bind(
                         &App::onMqttInboxMessage,
                         this,
@@ -381,7 +380,17 @@ class App
 
                     DefaultHeaders::Instance().addHeader("Access-Control-Allow-Origin", "*");
 
-                    webServer->onRequestBody(std::bind(
+                    webServer->onNotFound([](AsyncWebServerRequest *request) {
+                        request->send(404, "text/html", "<script>location.replace(\"/\");</script>");
+                    });
+
+                    webServer->on("/", HTTP_GET, [](AsyncWebServerRequest *request){
+                        request->send(SPIFFS, "/index.html", "", false);
+                    });
+
+                    webServer->on("/send", HTTP_ANY, [](AsyncWebServerRequest* request) {
+                        request->send(200);
+                    }, NULL, std::bind(
                         &App::webServerHandleBodyRequest,
                         this,
                         std::placeholders::_1,
@@ -391,14 +400,6 @@ class App
                         std::placeholders::_5
                     ));
 
-                    webServer->onNotFound([](AsyncWebServerRequest *request) {
-                        request->send(404, "text/html", "<script>location.replace(\"/\");</script>");
-                    });
-
-                    webServer->on("/", HTTP_GET, [](AsyncWebServerRequest *request){
-                        request->send(SPIFFS, "/index.html", "", false);
-                    });
-
                     webServer->serveStatic("/static/", SPIFFS, "/static/");
 
                     webSourceEvents = new AsyncEventSource("/updates");
@@ -407,13 +408,13 @@ class App
 
             void webServerHandleBodyRequest(AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t index, size_t total)
                 {
-                    if(request->url() != "/send" || request->method() != HTTP_POST) {
-                        return request->send(400);
+                    if(request->method() != HTTP_POST) {
+                        return;
                     }
 
                     DeserializationError error = deserializeJson(jsonBuffer, (const char*)data);
                     if(error) {
-                        return request->send(400);
+                        return;
                     }
 
                     char buffer[500];
@@ -422,7 +423,6 @@ class App
 
                     webSourceEvents->send(buffer, WebServerEvents::USER_MESSAGE, millis());
                     handleUserMessage(message);
-                    return request->send(200);
                 };
 
             void startWebServer()
