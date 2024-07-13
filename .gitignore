@@ -11,4 +11,6 @@
 
 # Environment
 .env.local
-include/Secret.h # deprecated
+
+# Environment (deprecated)
+include/Secret.h
