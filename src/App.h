@@ -99,15 +99,21 @@ class App
                     const char* message = receiveBufferFromMega.shift();
 
                     if(!strcmp(message, "2560ask?:inet"))
-                        return checkInternet();  // Возвратим меге inet.ok, если состояние CONNECTING_TO_TELEGRAM, иначе inet.no
-
-                    if(!strcmp(message, "2560ask?:ntp"))  // Синхронизация времени и дня недели для меги
-                        return runNtpSynchronization();
-
-                    if(checkState(CONNECTING_TO_TELEGRAM))  // Все остальное выводим в телеграм или в web
-                        bot->sendMessage(message);
+                        {
+                            checkInternet();  // Возвратим меге inet.ok, если состояние CONNECTING_TO_TELEGRAM, иначе inet.no
+                        }
+                    else if(!strcmp(message, "2560ask?:ntp"))  // Синхронизация времени и дня недели для меги
+                        {
+                            runNtpSynchronization();
+                        }
+                    else if(checkState(CONNECTING_TO_TELEGRAM))  // Все остальное выводим в телеграм или в web
+                        {
+                            bot->sendMessage(message);
+                        }
                     else
-                        webSourceEvents->send(message, "newMegaMessage", millis());
+                        {
+                            webSourceEvents->send(message, "newMegaMessage", millis());
+                        }
 
                     delete [] message;  // Cleanup heap, освобождаем пямять на
                 };
@@ -299,7 +305,9 @@ class App
 
                     DefaultHeaders::Instance().addHeader("Access-Control-Allow-Origin", "*");
 
-                    webServer->onRequestBody(std::bind(
+                    webServer->on("/send", HTTP_ANY, [](AsyncWebServerRequest* request) {
+                        request->send(200);
+                    }, NULL, std::bind(
                         &App::webServerHandleBodyRequest,
                         this,
                         std::placeholders::_1,
@@ -325,12 +333,14 @@ class App
 
             void webServerHandleBodyRequest(AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t index, size_t total)
                 {
-                    if(request->url() != "/send" || request->method() != HTTP_POST)
-                        return request->send(400);
+                    if(request->method() != HTTP_POST) {
+                        return;
+                    }
 
                     DeserializationError error = deserializeJson(jsonBuffer, (const char*)data);
-                    if(error)
-                        return request->send(400);
+                    if(error) {
+                        return;
+                    }
 
                     char buffer[500];
                     serializeJson(jsonBuffer, buffer);  // strcpy(buffer, (const char*)data);
@@ -338,7 +348,6 @@ class App
 
                     webSourceEvents->send(buffer, "newUserMessage", millis());
                     handleAnyMessageFromTelegramOrWeb(msg);
-                    return request->send(200);
                 };
 
             void startWebServer()
