@@ -2,7 +2,7 @@ const char* helpCommand[] = {
 R"rawliteral(
 <i><u>КОМАНДЫ СИСТЕМЫ ПОЛИВА</u></i>
 
-<b>12 on</b>
+//<b>12 on</b>
 <b>contactor on/off</b>
 <b>resanta on/off</b>
 <b>24 on/off</b>
@@ -70,8 +70,7 @@ R"rawliteral(
 <b>apol on</b> : автополив ENABLE
 <b>apol off</b> : автополив DISABLE
 
-<b>polN.x</b> : полив зоны N=<i>1-24</i>, x=<i>1-120</i>мин;
-x=<i>on/off</i> (вкл/выкл);  x=<i>t</i> -время из расписания
+<b>polN.x</b> : полив зоны N=<i>1-24</i>, x=<i>1-120</i>мин; x=<i>on/off</i>; x=<i>t</i> - время из расписания
 
 <b>active</b> : поливаемые зоны сейчас
 <b>skip</b> : пропустить текущ. зону в автополиве
@@ -175,7 +174,10 @@ const char* telegramVirtualKeyboard =
   "status \t options \t on \t shutdown \t stdby\n"
   "active \t save \t tank \t tank reset \t deep control\n"
   "info \t list \t zona0 \t /help \t /helppower\n"
-  "save \t skip \t go \t pause \t stop \t break\n"
-  "pool on \t pool off \t skimmer on \t skimmer off\n"
+  "stop \t go \t skip \t pause\n"
+  "pool on \t skimmer on \t pool off \t skimmer off\n"
   ".deep block \t .garden block \t apol on \t apol off\n"
   "memory \t balance \t ntp \t /start";
+
+  const char* hideTelegramVirtualKeyboard =
+  "/start";

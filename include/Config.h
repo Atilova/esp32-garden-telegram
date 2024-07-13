@@ -14,10 +14,10 @@ const IPAddress hosts[] =
     };
 
 AppConfig conf {
-    .WIFI_IP = IPAddress(192, 168, 0, 111),
-    .WIFI_GATEWAY = IPAddress(192, 168, 0, 1),
+    .WIFI_IP = IPAddress(192, 168, 1, 99),
+    .WIFI_GATEWAY = IPAddress(192, 168, 1, 1),
     .WIFI_SUBNET_MASK = IPAddress(255, 255, 255, 0),
-    .WIFI_PRIMARY_DNS = IPAddress(192, 168, 0, 1),
+    .WIFI_PRIMARY_DNS = IPAddress(192, 168, 1, 1),
     .WIFI_SECONDARY_DNS = IPAddress(8, 8, 8, 8),
     .WIFI_SSID = secretConfig.WIFI_SSID,
     .WIFI_PASSWORD = secretConfig.WIFI_PASSWORD,

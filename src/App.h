@@ -247,6 +247,8 @@ class App
                                         }
                                     case PING_FAILED:  // Во время работы телеграма отпал инет, поднимаем Webserver и ждем пинг ок
                                         {
+                                            Serial.println("Ping.  NO..");
+
                                             _app->checkInternet();  // Передаем inet.no в мегу
                                             _app->startWebServer();
                                             break;
@@ -401,7 +403,7 @@ class App
                     for(uint8_t index=0; index < localConf->PING_HOSTS_LENGTH; index++)
                         {
                             IPAddress pingableHost = localConf->PING_HOSTS[index];
-                            if(Ping.ping(pingableHost, 2))  // Сделаем две попытки пинга, если он не проходит
+                            if(Ping.ping(pingableHost, 3))  // Сделаем три попытки пинга, если он не проходит
                                 return true;
                         };
                     return false;
@@ -425,13 +427,20 @@ class App
                 {
                     if(message.text == "/start")
                         {
-                            bot->showMenuText("Keyboard loaded", telegramVirtualKeyboard);
+                            bot->showMenuText("keyboard loaded", telegramVirtualKeyboard);
+                            return;
+                        };
+                    if(message.text == "/hide")
+                        {
+                            bot->showMenuText("keyboard hidden", hideTelegramVirtualKeyboard);
                             return;
                         };
 
                     if(message.text == "ntp")
                         return runNtpSynchronization();
 
+                    Serial.print("From Telegram >");
+                    Serial.println(message.text);
                     handleAnyMessageFromTelegramOrWeb(message.text);  // Получаем сообщение и телеграма
                 };
 
