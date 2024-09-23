@@ -20,3 +20,8 @@ void wait(uint32_t milliseconds)
     {
         vTaskDelay(milliseconds / portTICK_RATE_MS);
     }
+
+bool startsWith(const char *str, const char *prefix)
+    {
+        return strncmp(str, prefix, strlen(prefix)) == 0;
+    }

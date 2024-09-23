@@ -22,8 +22,11 @@ struct AppConfig
         const char* MQTT_CLIENT_ID;
         const uint16_t MQTT_KEEP_ALIVE;
         const uint16_t MQTT_TIMEOUT;
+
         const char* MQTT_RECEIVE_TOPIC;
-        const char* MQTT_PUBLISH_TOPIC;
+        const char* MQTT_PUBLISH_DEFAULT_TOPIC;
+        const char* MQTT_PUBLISH_EVENTS_TOPIC;
+        const char* MQTT_PUBLISH_RESPONSE_TOPIC;
 
         uint32_t WEB_SERVER_PORT;
         uint16_t WEB_SERVER_EVENT_SOURCE_PING_INTERVAL;

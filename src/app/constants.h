@@ -8,6 +8,9 @@ namespace AppConstants
                 constexpr char NTP_REQUEST[] = "2560ask?:ntp";
                 constexpr char INET_OK[] = "inet.ok";
                 constexpr char INET_NO[] = "inet.no";
+
+                constexpr char EVENT_TYPE[] = "2560event!:";
+                constexpr char RESPONSE_TYPE[] = "2560response!:";
             }
 
         namespace WebServerEvents

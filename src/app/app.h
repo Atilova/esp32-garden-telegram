@@ -326,7 +326,7 @@ class App
                     strncpy(buffer, reinterpret_cast<char*>(payload), length);
                     buffer[length] = '\0';
 
-                    std::cout << "Inbox1: " << topic << " | -> " << buffer << std::endl;
+                    std::cout << "Inbox: " << topic << " | -> " << buffer << std::endl;
                     handleUserMessage(buffer);
                 }
 
@@ -460,10 +460,20 @@ class App
                         return webSourceEvents->send(message, WebServerEvents::MEGA_MESSAGE, millis());
                     }
 
-                    mqttClient.beginPublish(localConf->MQTT_PUBLISH_TOPIC, strlen(message), 0);
+                    mqttClient.beginPublish(getMessageBasedTopic(message), strlen(message), 0);
                     mqttClient.print(message);
                     mqttClient.endPublish();
                 }
+
+            const char* getMessageBasedTopic(const char* message) {
+                if (startsWith(message, MegaCodes::EVENT_TYPE)) {
+                    return localConf->MQTT_PUBLISH_EVENTS_TOPIC;
+                }
+                if (startsWith(message, MegaCodes::RESPONSE_TYPE)) {
+                    return localConf->MQTT_PUBLISH_RESPONSE_TOPIC;
+                }
+                return localConf->MQTT_PUBLISH_DEFAULT_TOPIC;
+            }
 
             void sendHelpPages(uint8_t startIndex, uint8_t endIndex)
                 {
@@ -501,6 +511,7 @@ class App
                         };
 
                     deliverMEGA(message);
+                    // deliverUser(message);
                 };
 
 
@@ -522,6 +533,7 @@ class App
                 {
                     delete webServer;
                     delete webSourceEvents;
+                    delete values.tzEnvPointer;
 
                     while(!exchangeBuffer.isEmpty())
                         {
