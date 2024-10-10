@@ -44,5 +44,7 @@ AppConfig conf {
     .PING_HOSTS = hosts,
     .PING_HOSTS_LENGTH = len(hosts),
 
-    .MEGA_IO = Serial2
+    .MEGA_IO = Serial2,
+    .RX_PIN = NUMBER_FROM_ENV(APP_RX_PIN),
+    .TX_PIN = NUMBER_FROM_ENV(APP_TX_PIN)
 };

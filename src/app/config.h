@@ -35,4 +35,6 @@ struct AppConfig
         uint8_t PING_HOSTS_LENGTH;
 
         HardwareSerial& MEGA_IO;
+        uint8_t RX_PIN;
+        uint8_t TX_PIN; 
     };

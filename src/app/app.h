@@ -523,7 +523,7 @@ class App
             App(AppConfig& data)
                 {
                     localConf = &data;
-
+                
                     setupTimezone();
                     setupMqttClient();
                     setupWebServer();
@@ -545,7 +545,7 @@ class App
             void setup()
                 {
                     SPIFFS.begin();
-                    localConf->MEGA_IO.begin(115200); // Это Serial2.begin(115200).
+                    localConf->MEGA_IO.begin(115200, SERIAL_8N1, localConf->RX_PIN, localConf->TX_PIN); // Это Serial2.begin(115200).
                     pinMode(localConf->ESP_LED_PIN, OUTPUT);
                 }
 
