@@ -44,6 +44,8 @@ struct AppConfig
         const char* LOCAL_TIMEZONE;
         uint8_t ESP_LED_PIN;  // LED ESP32 вывод - 2
         HardwareSerial& MEGA_IO;
+        int8_t RX_PIN;
+        int8_t TX_PIN;
     };
 
 enum appState
@@ -98,12 +100,16 @@ class App
 
                     const char* message = receiveBufferFromMega.shift();
 
+                    // Serial.println("Какое-то сообщение от меги");
+                    
                     if(!strcmp(message, "2560ask?:inet"))
                         {
+                            // Serial.println("Мега спросила про инет");
                             checkInternet();  // Возвратим меге inet.ok, если состояние CONNECTING_TO_TELEGRAM, иначе inet.no
                         }
                     else if(!strcmp(message, "2560ask?:ntp"))  // Синхронизация времени и дня недели для меги
                         {
+                            
                             runNtpSynchronization();
                         }
                     else if(checkState(CONNECTING_TO_TELEGRAM))  // Все остальное выводим в телеграм или в web
@@ -172,7 +178,11 @@ class App
 
                                     if(nextCharacter == RESPONSE_END)
                                         {
-                                            _app->addMessageToBuffer(ttyData);
+                                            if(!ttyData.startsWith("2560event!:") && !ttyData.startsWith("2560response!:"))
+                                                {
+                                                    _app->addMessageToBuffer(ttyData);
+                                                }
+                                            
                                             ttyData.clear();
                                             continue;
                                         };
@@ -285,7 +295,7 @@ class App
                     if(message == "memory")
                         return getFreeHeapSize();
 
-                    if(message == "reboot")
+                    if(message == "reboot esp")
                         {
                            const char restartMessage[] = "🛑 Перезагрузка ESP32, ожидайте...";
 
@@ -478,7 +488,7 @@ class App
             App(AppConfig& data)
                 {
                     localConf = &data;
-                    localConf->MEGA_IO.begin(115200);   // Это Serial2.begin(115200)
+                    localConf->MEGA_IO.begin(115200, SERIAL_8N1, localConf->RX_PIN, localConf->TX_PIN);   // Это должен был быть Serial2.begin(115200), но переназначены выводы, 16 у меня сгорел по умолчанию, который
                     SPIFFS.begin();
                     pinMode(localConf->ESP_LED_PIN, OUTPUT);
                     setupTelegram();
