@@ -13,6 +13,11 @@ namespace AppConstants
                 constexpr char RESPONSE_TYPE[] = "2560response!:";
             }
 
+        namespace ChipCodes
+            {
+                constexpr char CHIP_PING_TYPE[] = "chip!:ping";
+            }
+
         namespace WebServerEvents
             {
                 constexpr char PING_MESSAGE[] = "ping";
@@ -33,6 +38,16 @@ namespace AppConstants
                 constexpr char HELP_POWER[] = "/helppower";
                 constexpr char MEMORY[] = "memory";
                 constexpr char REBOOT[] = "reboot";
+            }
+
+        namespace InputPatterns
+            {
+                constexpr char CHIP_PING_PATTERN[] = "chip?:ping:%[^:]:null";
+            }
+
+        namespace OutputTemplates
+            {
+                constexpr char CHIP_PING_OK_TEMPLATE[] = "chip!:ping:%s:ok";
             }
 
         enum class State

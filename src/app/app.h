@@ -326,8 +326,19 @@ class App
                     strncpy(buffer, reinterpret_cast<char*>(payload), length);
                     buffer[length] = '\0';
 
-                    std::cout << "Inbox: " << topic << " | -> " << buffer << std::endl;
-                    handleUserMessage(buffer);
+                    std::cout << "Inbox: " << topic << " | " << buffer << std::endl;
+
+                    if(!strcmp(topic, localConf->MQTT_PING_TOPIC)) {
+                        return handleSystemPingMessage(buffer);
+                    }
+                    if(
+                        !strcmp(topic, localConf->MQTT_CAPTURE_TOPIC) ||
+                        !strcmp(topic, localConf->MQTT_REQUEST_TOPIC)
+                    ) {
+                        return handleUserMessage(buffer);
+                    }
+
+                    std::cout << "Topic handler is not registered: " << topic << std::endl;
                 }
 
             void setupMqttClient()
@@ -354,13 +365,20 @@ class App
                     );
                 }
 
+            void subscribeAllMqtt()
+                {
+                    mqttClient.subscribe(localConf->MQTT_PING_TOPIC);
+                    mqttClient.subscribe(localConf->MQTT_CAPTURE_TOPIC);
+                    mqttClient.subscribe(localConf->MQTT_REQUEST_TOPIC);
+                }
+
             void consumeMqtt()
                 {
                     std::cout << "Mqtt connected." << std::endl;
                     deliverUser(UserMessages::ESP_ONLINE);
 
                     exchangeBuffer.clear();
-                    mqttClient.subscribe(localConf->MQTT_RECEIVE_TOPIC);
+                    subscribeAllMqtt();
 
                     while(isState(State::CONSUME_MQTT) && mqttClient.loop()) {
                         processBufferMessage();
@@ -472,6 +490,10 @@ class App
                 if (startsWith(message, MegaCodes::RESPONSE_TYPE)) {
                     return localConf->MQTT_PUBLISH_RESPONSE_TOPIC;
                 }
+                if (startsWith(message, ChipCodes::CHIP_PING_TYPE)) {
+                    return localConf->MQTT_PUBLISH_PONG_TOPIC;
+                }
+
                 return localConf->MQTT_PUBLISH_DEFAULT_TOPIC;
             }
 
@@ -511,9 +533,28 @@ class App
                         };
 
                     deliverMEGA(message);
-                    // deliverUser(message);
+                    deliverUser(message);
                 };
 
+            /**
+             * Internal system methods and tools.
+             */
+
+            void handleSystemPingMessage(const char* message)
+                {
+                    char correlationId[36];
+                    int matched = sscanf(message, InputPatterns::CHIP_PING_PATTERN, correlationId);
+
+                    if(!isPatternMatched(matched)) {
+                        std::cout << "Unmatched mqtt pattern: " << message << std::endl;
+                        return;
+                    }
+
+                    char buffer[60];
+                    sprintf(buffer, OutputTemplates::CHIP_PING_OK_TEMPLATE, correlationId);
+
+                    deliverUser(buffer);
+                }
 
         public:
             /**
@@ -523,7 +564,7 @@ class App
             App(AppConfig& data)
                 {
                     localConf = &data;
-                
+
                     setupTimezone();
                     setupMqttClient();
                     setupWebServer();

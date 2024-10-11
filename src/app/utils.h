@@ -13,7 +13,7 @@ void tcpCleanup(void)
 
         while(tcp_tw_pcbs) {
             tcp_abort(tcp_tw_pcbs);
-		}
+        }
     }
 
 void wait(uint32_t milliseconds)
@@ -24,4 +24,9 @@ void wait(uint32_t milliseconds)
 bool startsWith(const char *str, const char *prefix)
     {
         return strncmp(str, prefix, strlen(prefix)) == 0;
+    }
+
+inline bool isPatternMatched(int entries)
+    {
+        return entries > 0;
     }

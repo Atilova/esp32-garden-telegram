@@ -23,7 +23,10 @@ struct AppConfig
         const uint16_t MQTT_KEEP_ALIVE;
         const uint16_t MQTT_TIMEOUT;
 
-        const char* MQTT_RECEIVE_TOPIC;
+        const char* MQTT_PING_TOPIC;
+        const char* MQTT_REQUEST_TOPIC;
+        const char* MQTT_CAPTURE_TOPIC;
+        const char* MQTT_PUBLISH_PONG_TOPIC;
         const char* MQTT_PUBLISH_DEFAULT_TOPIC;
         const char* MQTT_PUBLISH_EVENTS_TOPIC;
         const char* MQTT_PUBLISH_RESPONSE_TOPIC;
