@@ -186,8 +186,8 @@ const char* telegramVirtualKeyboard =
   "pool on \t skimmer on \t pool off \t skimmer off\n"
   "deep block \t garden block \t apol on \t apol off\n"
   "memory \t balance \t ntp \t /start\n"
-  "01 on \t 01 off \t 02 off \t 03 off \t all on\n"
-  "04 on \t 04 off \t 05 on \t 05 off \t all off";
+  "supply \t 01 on \t 01 off \t 02 off \t 03 off\n"
+  "04 on \t 04 off \t 05 on \t 05 off \t all on \t all off";
     
   const char* hideTelegramVirtualKeyboard =
   "/start";
