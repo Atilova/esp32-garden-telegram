@@ -13,4 +13,5 @@ with open(ENV_FILE, 'r') as env_file:
 	env.Append(BUILD_FLAGS=[
 		f'-D{line.strip()}'
 		for line in env_file.readlines()
+		if not line.startswith('#')
 	])

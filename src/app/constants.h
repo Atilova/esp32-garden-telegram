@@ -37,7 +37,7 @@ namespace AppConstants
                 constexpr char HELP[] = "/help";
                 constexpr char HELP_POWER[] = "/helppower";
                 constexpr char MEMORY[] = "memory";
-                constexpr char REBOOT[] = "reboot";
+                constexpr char REBOOT[] = "reboot esp";
             }
 
         namespace InputPatterns
