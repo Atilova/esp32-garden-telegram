@@ -533,7 +533,7 @@ class App
                         };
 
                     deliverMEGA(message);
-                    deliverUser(message);
+                    // deliverUser(message);
                 };
 
             /**
