@@ -29,7 +29,7 @@ AppConfig conf {
     .LOCAL_TIMEZONE = "EET-2EEST,M3.5.0/3,M10.5.0/4",
     .ESP_LED_PIN = 2,
     .MEGA_IO = Serial2, 
-    .RX_PIN = 25, //rx pin 25, tx pin26 эти пины назначены. у меня сгорел пин 16-rx2 на esp, пришлось переназначать
-    .TX_PIN = 26
+    .RX_PIN = 16, //rx pin 25, tx pin26 эти пины назначены. у меня сгорел пин 16-rx2 на esp, пришлось переназначать
+    .TX_PIN = 17
 };
 #endif
