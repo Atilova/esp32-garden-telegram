@@ -38,6 +38,7 @@ namespace AppConstants
                 constexpr char HELP_POWER[] = "/helppower";
                 constexpr char MEMORY[] = "memory";
                 constexpr char REBOOT[] = "reboot esp";
+                constexpr char NTP[] = "ntp";
             }
 
         namespace InputPatterns

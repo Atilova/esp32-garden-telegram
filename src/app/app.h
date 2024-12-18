@@ -525,6 +525,10 @@ class App
                         return sendESPFreeHeap();
                     }
 
+                    if(!strcmp(message, UserCommands::NTP)) {
+                        return syncMEGADatetime();
+                    }
+
                     if(!strcmp(message, UserCommands::REBOOT))
                         {
                             deliverUser(UserMessages::ESP_REBOOT);
