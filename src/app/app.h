@@ -4,6 +4,7 @@
 #include <iostream>
 #include <Arduino.h>
 #include <WiFi.h>
+#include <WiFiClientSecure.h>
 #include <time.h>
 #include <SPIFFS.h>
 #include <IPAddress.h>
@@ -34,7 +35,8 @@ class App
             TaskHandle_t xInternetHandle = NULL;
             TaskHandle_t xSerialMegaHandle = NULL;
 
-            WiFiClient wifiClient;
+            // WiFiClient wifiClient;
+            WiFiClientSecure wifiClientSecure;
             PubSubClient mqttClient;
 
             AsyncWebServer* webServer;
@@ -150,6 +152,8 @@ class App
                                         }
                                     ttyData += nextCharacter;
                                 }
+
+                            wait(10);
                         }
                 }
 
@@ -343,7 +347,7 @@ class App
 
             void setupMqttClient()
                 {
-                    mqttClient.setClient(wifiClient);
+                    mqttClient.setClient(wifiClientSecure);
                     mqttClient.setServer(localConf->MQTT_HOST, localConf->MQTT_PORT);
                     mqttClient.setKeepAlive(localConf->MQTT_KEEP_ALIVE);
                     mqttClient.setSocketTimeout(localConf->MQTT_TIMEOUT);
@@ -589,6 +593,7 @@ class App
 
             void setup()
                 {
+                    wifiClientSecure.setCACert(TLS::LETS_ENCRYPT_ROOT_CA);
                     SPIFFS.begin();
                     localConf->MEGA_IO.begin(115200, SERIAL_8N1, localConf->RX_PIN, localConf->TX_PIN); // Это Serial2.begin(115200).
                     pinMode(localConf->ESP_LED_PIN, OUTPUT);
